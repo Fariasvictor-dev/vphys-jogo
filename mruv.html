@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>V-PHYS | MRUV - Simulador Avançado</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+    <style>
+        :root {
+            --verde: #2ecc71;
+            --amarelo: #f1c40f;
+            --vermelho: #e74c3c;
+            --azul: #3498db;
+            --bg: #060d09;
+            --bg2: #0c1610;
+            --panel: #111d14;
+            --panel2: #162419;
+            --border: rgba(46,204,113,0.18);
+            --text: #dff0e6;
+            --dim: rgba(223,240,230,0.5);
+        }
+        *, *::before, *::after { box-sizing: border-box; }
+        body {
+            font-family: 'Outfit', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 20px 16px 40px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        /* ── HEADER ── */
+        .header { width: 100%; max-width: 980px; display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 1px solid var(--verde); padding-bottom: 12px; margin-bottom: 22px; }
+        .header-left { display: flex; flex-direction: column; gap: 4px; }
+        .badge { background: var(--verde); color: #000; padding: 3px 10px; border-radius: 4px; font-weight: 700; font-size: 0.72rem; letter-spacing: 0.08em; display: inline-block; }
+        .header h2 { margin: 0; font-size: 1.35rem; font-weight: 600; letter-spacing: -0.01em; }
+        .header-right { text-align: right; }
+        .header-right .brand { color: var(--verde); font-family: 'Space Mono', monospace; font-size: 0.75rem; letter-spacing: 0.12em; }
+        .header-right .sub { font-size: 0.7rem; color: var(--dim); margin-top: 2px; }
+
+        /* ── TABS ── */
+        .tabs { width: 100%; max-width: 980px; display: flex; gap: 4px; margin-bottom: 18px; }
+        .tab-btn { padding: 8px 20px; border-radius: 6px; border: 1px solid var(--border); background: transparent; color: var(--dim); cursor: pointer; font-family: 'Outfit', sans-serif; font-size: 0.85rem; transition: all 0.2s; }
+        .tab-btn.active { background: var(--verde); color: #000; font-weight: 700; border-color: var(--verde); }
+        .tab-btn:hover:not(.active) { border-color: var(--verde); color: var(--text); }
+        .tab-content { display: none; width: 100%; max-width: 980px; }
+        .tab-content.active { display: block; }
+
+        /* ── MAIN LAYOUT ── */
+        .main-layout { display: flex; gap: 18px; width: 100%; }
+
+        /* ── CONTROLS ── */
+        .controls { background: var(--panel); padding: 20px; border-radius: 12px; width: 290px; flex-shrink: 0; border: 1px solid var(--border); display: flex; flex-direction: column; gap: 0; }
+        .slider-group { margin-bottom: 20px; }
+        .slider-group label { display: block; font-size: 0.82rem; margin-bottom: 8px; color: var(--dim); }
+        .slider-group label b { color: var(--text); font-family: 'Space Mono', monospace; font-size: 0.95rem; }
+        input[type=range] { width: 100%; accent-color: var(--verde); cursor: pointer; height: 4px; }
+
+        .formula-box { background: rgba(0,0,0,0.35); padding: 13px 14px; border-radius: 8px; font-family: 'Space Mono', monospace; text-align: center; border-left: 3px solid var(--verde); margin-bottom: 16px; }
+        .formula-box .formula-label { font-size: 0.65rem; opacity: 0.5; letter-spacing: 0.08em; margin-bottom: 4px; }
+        .formula-box #formula-display { font-size: 0.95rem; color: var(--verde); }
+
+        .radar-config { background: rgba(231,76,60,0.08); border: 1px solid rgba(231,76,60,0.3); border-radius: 8px; padding: 12px; margin-bottom: 16px; }
+        .radar-config label { font-size: 0.8rem; color: #e74c3c; display: block; margin-bottom: 8px; }
+        .radar-config input[type=range] { accent-color: #e74c3c; }
+        .radar-config .radar-val { font-family: 'Space Mono', monospace; font-size: 0.85rem; color: #e74c3c; }
+
+        .speed-controls { display: flex; gap: 6px; margin-bottom: 14px; }
+        .speed-btn { flex: 1; background: var(--panel2); border: 1px solid var(--border); color: var(--dim); padding: 7px 4px; border-radius: 6px; cursor: pointer; font-size: 0.78rem; font-family: 'Outfit', sans-serif; transition: all 0.2s; text-align: center; }
+        .speed-btn.active { background: rgba(46,204,113,0.15); border-color: var(--verde); color: var(--verde); font-weight: 700; }
+
+        .btn-run { background: var(--verde); color: #000; border: none; padding: 11px; width: 100%; border-radius: 7px; font-weight: 700; cursor: pointer; font-family: 'Outfit', sans-serif; font-size: 0.9rem; letter-spacing: 0.04em; transition: all 0.2s; margin-bottom: 8px; }
+        .btn-run:hover { filter: brightness(1.12); }
+        .btn-reset { background: transparent; color: var(--dim); border: 1px solid var(--border); padding: 9px; width: 100%; border-radius: 7px; cursor: pointer; font-family: 'Outfit', sans-serif; font-size: 0.85rem; transition: all 0.2s; }
+        .btn-reset:hover { border-color: var(--verde); color: var(--text); }
+
+        /* ── VISUAL AREA ── */
+        .visual-area { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 16px; }
+        .panel { background: var(--panel); border-radius: 12px; padding: 16px; border: 1px solid var(--border); }
+        .panel-label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--dim); margin-bottom: 10px; }
+
+        /* ── STATS ROW ── */
+        .stats-row { display: flex; gap: 10px; }
+        .stat-card { flex: 1; background: var(--panel2); border-radius: 8px; padding: 10px 14px; border: 1px solid var(--border); }
+        .stat-card .stat-label { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--dim); }
+        .stat-card .stat-val { font-family: 'Space Mono', monospace; font-size: 1.25rem; font-weight: 700; margin-top: 2px; }
+        .stat-v { color: var(--verde); }
+        .stat-a { color: var(--amarelo); }
+        .stat-t { color: var(--azul); }
+        .stat-s { color: #a29bfe; }
+
+        /* ── ROAD ── */
+        .road-wrap { position: relative; }
+        .road { width: 100%; height: 90px; background: #0d1a0f; position: relative; border-radius: 10px; overflow: hidden; border: 1px solid #1a2e1e; }
+        .road::before { content:''; position:absolute; top:0; left:0; right:0; bottom:0; background: repeating-linear-gradient(90deg, transparent, transparent 60px, rgba(255,255,255,0.03) 60px, rgba(255,255,255,0.03) 61px); }
+        .road-line { position: absolute; width: 38px; height: 3px; background: rgba(255,255,255,0.22); top: 50%; transform: translateY(-50%); border-radius: 2px; }
+        #car-svg { position: absolute; bottom: 12px; left: 20px; will-change: transform; }
+
+        /* VECTOR ARROWS */
+        .vector-overlay { position: absolute; bottom: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+
+        /* RADAR */
+        .radar-post { position: absolute; right: 60px; top: 0; bottom: 0; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; pointer-events: none; z-index: 10; }
+        .radar-pole { width: 3px; height: 100%; background: #555; }
+        .radar-arm { position: absolute; top: 8px; right: 0; font-size: 20px; }
+        .radar-flash { position: absolute; inset: 0; background: rgba(255,255,255,0); border-radius: 10px; pointer-events: none; transition: background 0.05s; }
+        .radar-flash.flash { background: rgba(255,255,255,0.18); }
+        .ticket { position: absolute; top: 110px; right: 10px; background: #1a0000; border: 1.5px solid #e74c3c; border-radius: 8px; padding: 10px 14px; font-family: 'Space Mono', monospace; font-size: 0.75rem; color: #e74c3c; min-width: 170px; z-index: 20; display: none; }
+        .ticket.show { display: block; animation: ticketIn 0.3s ease; }
+        @keyframes ticketIn { from { opacity:0; transform:translateY(-8px); } to { opacity:1; transform:translateY(0); } }
+
+        /* ── TIRE MARKS & SMOKE ── */
+        .tire-mark { position: absolute; bottom: 12px; height: 5px; border-radius: 2px; background: rgba(20,20,20,0.75); pointer-events: none; }
+        .smoke-particle { position: absolute; border-radius: 50%; pointer-events: none; animation: smokeRise 1.2s ease-out forwards; }
+        @keyframes smokeRise {
+            0%   { transform: translate(0,0) scale(1);   opacity: 0.55; }
+            60%  { transform: translate(-18px,-22px) scale(1.8); opacity: 0.3; }
+            100% { transform: translate(-30px,-40px) scale(2.6); opacity: 0; }
+        }
+        .graph-panel { background: var(--panel2); border-radius: 10px; padding: 16px; border: 1px solid var(--border); }
+        .graph-tabs { display: flex; gap: 6px; margin-bottom: 14px; }
+        .graph-tab-btn { padding: 6px 18px; border-radius: 5px; border: 1px solid var(--border); background: transparent; color: var(--dim); cursor: pointer; font-family: 'Outfit', sans-serif; font-size: 0.8rem; transition: all 0.18s; }
+        .graph-tab-btn.active { background: rgba(46,204,113,0.15); border-color: var(--verde); color: var(--verde); font-weight: 700; }
+        .graph-tab-btn:hover:not(.active) { border-color: var(--verde); color: var(--text); }
+        .graph-pane { display: none; }
+        .graph-pane.active { display: block; }
+        .graph-pane canvas { width: 100% !important; }
+
+        /* ── GUIDE TAB ── */
+        .guide { max-width: 980px; width: 100%; }
+        .guide-hero { background: linear-gradient(135deg, #0c1d10 0%, #0f2416 100%); border: 1px solid var(--border); border-radius: 14px; padding: 30px 34px; margin-bottom: 20px; }
+        .guide-hero h3 { margin: 0 0 8px; font-size: 1.2rem; color: var(--verde); }
+        .guide-hero p { margin: 0; color: var(--dim); line-height: 1.7; font-size: 0.9rem; }
+        .guide-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; margin-bottom: 20px; }
+        .guide-card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
+        .guide-card .gc-icon { font-size: 1.8rem; margin-bottom: 10px; }
+        .guide-card h4 { margin: 0 0 8px; font-size: 0.95rem; color: var(--verde); }
+        .guide-card p, .guide-card li { font-size: 0.84rem; color: var(--dim); line-height: 1.65; margin: 0; }
+        .guide-card ul { padding-left: 16px; margin: 6px 0 0; }
+        .guide-card li { margin-bottom: 4px; }
+        .guide-table { width: 100%; border-collapse: collapse; background: var(--panel); border-radius: 12px; overflow: hidden; border: 1px solid var(--border); margin-bottom: 20px; }
+        .guide-table th { background: rgba(46,204,113,0.12); padding: 11px 16px; font-size: 0.78rem; text-align: left; letter-spacing: 0.06em; text-transform: uppercase; color: var(--verde); border-bottom: 1px solid var(--border); }
+        .guide-table td { padding: 10px 16px; font-size: 0.84rem; border-bottom: 1px solid rgba(46,204,113,0.07); color: var(--dim); }
+        .guide-table tr:last-child td { border-bottom: none; }
+        .guide-table td:first-child { font-family: 'Space Mono', monospace; color: var(--text); font-size: 0.8rem; }
+        .formula-section { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 20px 24px; }
+        .formula-section h4 { margin: 0 0 14px; font-size: 0.95rem; color: var(--verde); }
+        .fml-row { display: flex; gap: 12px; flex-wrap: wrap; }
+        .fml-item { background: rgba(0,0,0,0.3); border-left: 3px solid var(--verde); border-radius: 0 6px 6px 0; padding: 10px 16px; font-family: 'Space Mono', monospace; font-size: 0.88rem; color: var(--verde); flex: 1; min-width: 200px; }
+        .fml-item span { display: block; font-family: 'Outfit', sans-serif; font-size: 0.72rem; color: var(--dim); margin-top: 3px; }
+
+        /* ── VECTOR LEGEND ── */
+        .vector-legend { display: flex; gap: 16px; margin-top: 8px; }
+        .vl-item { display: flex; align-items: center; gap: 6px; font-size: 0.75rem; color: var(--dim); }
+        .vl-dot { width: 24px; height: 3px; border-radius: 2px; }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <div class="header-left">
+        <span class="badge">1º ANO · CINEMÁTICA</span>
+        <h2>Simulador MRUV — Movimento Uniformemente Variado</h2>
+    </div>
+    <div class="header-right">
+        <div class="brand">V-PHYS</div>
+        <div class="sub">Software Educacional de Física</div>
+    </div>
+</div>
+
+<!-- TABS -->
+<div class="tabs">
+    <button class="tab-btn active" onclick="showTab('sim')">⚡ Simulador</button>
+    <button class="tab-btn" onclick="showTab('guide')">📖 Como Usar</button>
+</div>
+
+<!-- ═══════════════ SIMULADOR ═══════════════ -->
+<div class="tab-content active" id="tab-sim">
+    <div class="main-layout">
+
+        <!-- CONTROLS -->
+        <div class="controls">
+            <div class="slider-group">
+                <label>Velocidade Inicial (v₀): <b id="txt-v0">0</b> m/s</label>
+                <input type="range" id="v0" min="0" max="30" value="0" oninput="resetSim()">
+            </div>
+            <div class="slider-group">
+                <label>Aceleração (a): <b id="txt-a">2.0</b> m/s²</label>
+                <input type="range" id="acc" min="-5" max="10" step="0.5" value="2" oninput="resetSim()">
+            </div>
+
+            <div class="formula-box">
+                <div class="formula-label">FUNÇÃO HORÁRIA DA VELOCIDADE</div>
+                <div id="formula-display">v(t) = 0 + 2·t</div>
+            </div>
+
+            <!-- RADAR CONFIG -->
+            <div class="radar-config">
+                <label>📡 Radar: limite <span class="radar-val" id="radar-val">15</span> m/s</label>
+                <input type="range" id="radar-limit" min="5" max="30" value="15" oninput="document.getElementById('radar-val').textContent=this.value">
+            </div>
+
+            <!-- SLOW MOTION -->
+            <div style="margin-bottom:14px;">
+                <div style="font-size:0.75rem; color:var(--dim); margin-bottom:8px; text-transform:uppercase; letter-spacing:0.06em;">Velocidade de Simulação</div>
+                <div class="speed-controls">
+                    <button class="speed-btn" onclick="setSpeed(0.25)">0.25×</button>
+                    <button class="speed-btn" onclick="setSpeed(0.5)">0.5×</button>
+                    <button class="speed-btn active" onclick="setSpeed(1)">1×</button>
+                    <button class="speed-btn" onclick="setSpeed(2)">2×</button>
+                </div>
+            </div>
+
+            <button class="btn-run" onclick="startSim()">▶ INICIAR</button>
+            <button class="btn-reset" onclick="resetSim()">↺ Resetar</button>
+        </div>
+
+        <!-- VISUAL AREA -->
+        <div class="visual-area">
+
+            <!-- STATS -->
+            <div class="stats-row">
+                <div class="stat-card"><div class="stat-label">Velocidade</div><div class="stat-val stat-v" id="sv">0.00 <small style="font-size:.6em">m/s</small></div></div>
+                <div class="stat-card"><div class="stat-label">Aceleração</div><div class="stat-val stat-a" id="sa">0.0 <small style="font-size:.6em">m/s²</small></div></div>
+                <div class="stat-card"><div class="stat-label">Tempo</div><div class="stat-val stat-t" id="st">0.00 <small style="font-size:.6em">s</small></div></div>
+                <div class="stat-card"><div class="stat-label">Posição</div><div class="stat-val stat-s" id="ss">0.00 <small style="font-size:.6em">m</small></div></div>
+            </div>
+
+            <!-- ROAD -->
+            <div class="panel">
+                <div class="panel-label">Pista de Simulação — Vetores em Tempo Real</div>
+                <div class="road-wrap">
+                    <div class="road" id="road">
+                        <div class="road-line" style="left:15%"></div>
+                        <div class="road-line" style="left:35%"></div>
+                        <div class="road-line" style="left:55%"></div>
+                        <div class="road-line" style="left:75%"></div>
+                        <!-- RADAR POST -->
+                        <div class="radar-post">
+                            <div class="radar-arm" id="radar-arm">📡</div>
+                            <div class="radar-pole"></div>
+                        </div>
+                        <!-- CAR + VECTORS -->
+                        <svg id="car-svg" width="160" height="60" viewBox="0 0 160 60" overflow="visible">
+                            <!-- Car body -->
+                            <g id="car-body">
+                                <rect x="2" y="22" width="58" height="22" rx="6" fill="#27ae60"/>
+                                <rect x="10" y="12" width="38" height="16" rx="4" fill="#2ecc71"/>
+                                <circle cx="12" cy="46" r="7" fill="#1a1a1a" stroke="#555" stroke-width="2"/>
+                                <circle cx="48" cy="46" r="7" fill="#1a1a1a" stroke="#555" stroke-width="2"/>
+                                <rect x="52" y="26" width="6" height="5" rx="1" fill="#f39c12"/>
+                                <rect x="1" y="26" width="5" height="5" rx="1" fill="#c0392b"/>
+                                <rect x="14" y="14" width="16" height="10" rx="2" fill="rgba(100,200,255,0.35)" stroke="rgba(100,200,255,0.5)" stroke-width="0.5"/>
+                                <rect x="32" y="14" width="12" height="10" rx="2" fill="rgba(100,200,255,0.35)" stroke="rgba(100,200,255,0.5)" stroke-width="0.5"/>
+                            </g>
+                            <!-- Velocity vector (green arrow) -->
+                            <g id="vec-v" transform="translate(62,33)">
+                                <line id="vec-v-line" x1="0" y1="0" x2="0" y2="0" stroke="#2ecc71" stroke-width="3" stroke-linecap="round"/>
+                                <polygon id="vec-v-head" points="0,0" fill="#2ecc71"/>
+                                <text id="vec-v-label" x="0" y="-6" fill="#2ecc71" font-size="9" font-family="Space Mono" text-anchor="middle"></text>
+                            </g>
+                            <!-- Acceleration vector (yellow arrow) -->
+                            <g id="vec-a" transform="translate(62,42)">
+                                <line id="vec-a-line" x1="0" y1="0" x2="0" y2="0" stroke="#f1c40f" stroke-width="3" stroke-linecap="round"/>
+                                <polygon id="vec-a-head" points="0,0" fill="#f1c40f"/>
+                                <text id="vec-a-label" x="0" y="14" fill="#f1c40f" font-size="9" font-family="Space Mono" text-anchor="middle"></text>
+                            </g>
+                        </svg>
+                        <div class="radar-flash" id="radar-flash"></div>
+                    </div>
+                    <!-- TICKET -->
+                    <div class="ticket" id="ticket">
+                        <div style="color:#fff;font-weight:700;margin-bottom:6px;">🚨 MULTA EMITIDA</div>
+                        <div id="ticket-v"></div>
+                        <div id="ticket-t"></div>
+                        <div id="ticket-s"></div>
+                        <div style="margin-top:6px;color:rgba(231,76,60,0.6);font-size:0.65rem;">RADAR V-PHYS © PISTA SIMULADA</div>
+                    </div>
+                </div>
+
+                <div class="vector-legend">
+                    <div class="vl-item"><div class="vl-dot" style="background:#2ecc71"></div>Vetor Velocidade (v) — cresce com a aceleração</div>
+                    <div class="vl-item"><div class="vl-dot" style="background:#f1c40f"></div>Vetor Aceleração (a) — constante no MRUV</div>
+                </div>
+            </div>
+
+            <!-- GRAPHS -->
+            <div class="graph-panel">
+                <div class="graph-tabs">
+                    <button class="graph-tab-btn active" onclick="switchGraph('V', this)">📈 Velocidade × Tempo — v(t)</button>
+                    <button class="graph-tab-btn" onclick="switchGraph('S', this)">📍 Posição × Tempo — s(t)</button>
+                </div>
+                <div class="graph-pane active" id="gpane-V">
+                    <canvas id="chartV" height="170"></canvas>
+                </div>
+                <div class="graph-pane" id="gpane-S">
+                    <canvas id="chartS" height="170"></canvas>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════ GUIA ═══════════════ -->
+<div class="tab-content" id="tab-guide">
+    <div class="guide">
+        <div class="guide-hero">
+            <h3>📖 Como usar o Simulador MRUV</h3>
+            <p>Este simulador permite explorar de forma visual e interativa o <strong style="color:var(--verde)">Movimento Retilíneo Uniformemente Variado (MRUV)</strong> — o movimento no qual a aceleração é constante e a velocidade varia linearmente com o tempo. Siga as instruções abaixo para tirar o máximo proveito da ferramenta.</p>
+        </div>
+
+        <div class="guide-grid">
+            <div class="guide-card">
+                <div class="gc-icon">🎚️</div>
+                <h4>1. Configure os Parâmetros</h4>
+                <p>Use os dois sliders no painel da esquerda:</p>
+                <ul>
+                    <li><strong style="color:var(--verde)">Velocidade Inicial (v₀)</strong>: velocidade com que o carro começa a se mover. Varia de 0 a 30 m/s.</li>
+                    <li><strong style="color:var(--amarelo)">Aceleração (a)</strong>: taxa de variação da velocidade. Valores negativos fazem o carro <em>desacelerar</em>. Varia de −5 a +10 m/s².</li>
+                </ul>
+            </div>
+            <div class="guide-card">
+                <div class="gc-icon">▶️</div>
+                <h4>2. Inicie e Observe</h4>
+                <p>Clique em <strong style="color:var(--verde)">INICIAR</strong> para começar a simulação. Observe:</p>
+                <ul>
+                    <li>O carro mover-se na pista</li>
+                    <li>As setas (vetores) crescerem ou encolherem em tempo real</li>
+                    <li>Os gráficos serem desenhados dinamicamente</li>
+                    <li>Os valores de v, a, t e posição atualizarem nos cartões superiores</li>
+                </ul>
+            </div>
+            <div class="guide-card">
+                <div class="gc-icon">🏹</div>
+                <h4>3. Leia os Vetores</h4>
+                <ul>
+                    <li><strong style="color:var(--verde)">Seta verde (Velocidade)</strong>: quanto maior, mais rápido o carro. Ela cresce ao longo do tempo quando há aceleração positiva.</li>
+                    <li><strong style="color:var(--amarelo)">Seta amarela (Aceleração)</strong>: tamanho fixo — representa que a aceleração é <em>constante</em> no MRUV. Se estiver para a esquerda, o carro está a travar.</li>
+                </ul>
+            </div>
+            <div class="guide-card">
+                <div class="gc-icon">📡</div>
+                <h4>4. Use o Radar de Velocidade</h4>
+                <p>Defina o limite do radar com o slider vermelho. Se o carro passar pelo poste do radar com velocidade <strong>acima do limite</strong>, um flash dispara e um ticket é exibido com os dados do momento exato (v, t, s). Use para aplicar a Equação de Torricelli!</p>
+            </div>
+            <div class="guide-card">
+                <div class="gc-icon">🐢</div>
+                <h4>5. Câmera Lenta (Slow Motion)</h4>
+                <p>Use os botões <strong>0.25×</strong>, <strong>0.5×</strong>, <strong>1×</strong> ou <strong>2×</strong> para controlar a velocidade da simulação. Em câmera lenta, é possível observar passo a passo como a aceleração altera a velocidade a cada instante.</p>
+            </div>
+            <div class="guide-card">
+                <div class="gc-icon">📊</div>
+                <h4>6. Analise os Gráficos</h4>
+                <ul>
+                    <li><strong style="color:var(--verde)">Gráfico v(t)</strong>: deve ser uma reta. A inclinação da reta é exatamente a aceleração.</li>
+                    <li><strong style="color:#a29bfe)">Gráfico s(t)</strong>: é uma parábola quando há aceleração (curva). Passe o mouse sobre os pontos para ver os valores exatos.</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- CENÁRIOS -->
+        <table class="guide-table">
+            <thead><tr><th>Configuração Sugerida</th><th>O que Observar</th><th>Conceito Treinado</th></tr></thead>
+            <tbody>
+                <tr><td>v₀ = 0, a = +5</td><td>Carro parte do repouso e acelera; seta verde cresce</td><td>Partida com repouso</td></tr>
+                <tr><td>v₀ = 20, a = −4</td><td>Carro desacelera até parar; seta amarela aponta para trás</td><td>Frenagem / desaceleração</td></tr>
+                <tr><td>v₀ = 10, a = 0</td><td>Carro anda à velocidade constante; gráfico v(t) é horizontal</td><td>MRU (aceleração nula)</td></tr>
+                <tr><td>v₀ = 5, a = +10</td><td>Radar dispara rapidamente; ticket mostra dados de Torricelli</td><td>Equação v² = v₀² + 2as</td></tr>
+                <tr><td>v₀ = 0, a = +2 em 0.25×</td><td>Câmera lenta: cada intervalo de Δt é claramente visível</td><td>Definição de aceleração média</td></tr>
+            </tbody>
+        </table>
+
+        <!-- FÓRMULAS -->
+        <div class="formula-section">
+            <h4>Equações do MRUV — Referência Rápida</h4>
+            <div class="fml-row">
+                <div class="fml-item">v(t) = v₀ + a·t<span>Função horária da velocidade</span></div>
+                <div class="fml-item">s(t) = s₀ + v₀·t + ½·a·t²<span>Função horária da posição</span></div>
+                <div class="fml-item">v² = v₀² + 2·a·Δs<span>Equação de Torricelli (sem tempo)</span></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // ── CHART.JS SETUP ──
+    const cfgBase = (label, yUnit, color) => ({
+        type: 'line',
+        data: { labels: [], datasets: [{ label, data: [], borderColor: color, backgroundColor: color+'22', borderWidth: 2, pointRadius: 2, pointHoverRadius: 5, tension: 0.3, fill: true }] },
+        options: {
+            animation: false,
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    backgroundColor: '#111d14', borderColor: color, borderWidth: 1,
+                    titleColor: 'rgba(223,240,230,0.6)', bodyColor: '#dff0e6',
+                    titleFont: { family: 'Space Mono', size: 9 },
+                    callbacks: {
+                        title: ctx => `t = ${ctx[0].label} s`,
+                        label: ctx => ` ${ctx.parsed.y.toFixed(2)} ${yUnit}`
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    grid: { color: 'rgba(46,204,113,0.07)' },
+                    ticks: { color: 'rgba(223,240,230,0.4)', font: { family: 'Space Mono', size: 9 }, maxTicksLimit: 8 },
+                    title: { display: true, text: 'Tempo (s)', color: 'rgba(223,240,230,0.55)', font: { family: 'Outfit', size: 10, weight: '600' }, padding: { top: 4 } }
+                },
+                y: {
+                    grid: { color: 'rgba(46,204,113,0.07)' },
+                    ticks: { color: 'rgba(223,240,230,0.4)', font: { family: 'Space Mono', size: 9 }, maxTicksLimit: 6 },
+                    title: { display: true, text: label, color: 'rgba(223,240,230,0.55)', font: { family: 'Outfit', size: 10, weight: '600' }, padding: { bottom: 4 } }
+                }
+            }
+        }
+    });
+
+    const chartV = new Chart(document.getElementById('chartV'), cfgBase('Velocidade (m/s)', 'm/s', '#2ecc71'));
+    const chartS = new Chart(document.getElementById('chartS'), cfgBase('Posição (m)',       'm',   '#a29bfe'));
+
+    // ── STATE ──
+    let raf, running = false;
+    let simT = 0, carX = 0, lastReal = null;
+    let simSpeed = 1;
+    let radarFired = false;
+
+    const road = document.getElementById('road');
+
+    function getParams() {
+        return {
+            v0: parseFloat(document.getElementById('v0').value),
+            a:  parseFloat(document.getElementById('acc').value),
+            radarLimit: parseFloat(document.getElementById('radar-limit').value)
+        };
+    }
+
+    function setSpeed(s) {
+        simSpeed = s;
+        document.querySelectorAll('.speed-btn').forEach(b => b.classList.remove('active'));
+        event.target.classList.add('active');
+    }
+
+    function updateFormula() {
+        const {v0, a} = getParams();
+        document.getElementById('txt-v0').textContent = v0;
+        document.getElementById('txt-a').textContent = a.toFixed(1);
+        const sign = a >= 0 ? '+' : '−';
+        document.getElementById('formula-display').textContent = `v(t) = ${v0} ${sign} ${Math.abs(a).toFixed(1)}·t`;
+    }
+
+    function drawVectors(v, a) {
+        const maxVLen = 80, maxALen = 40;
+        const vLen = Math.min(Math.abs(v) * 3, maxVLen);
+        const aLen = Math.min(Math.abs(a) * 8, maxALen);
+
+        function setArrow(lineEl, headEl, labelEl, len, val, offsetY, isV) {
+            const dir = val >= 0 ? 1 : -1;
+            const x2 = dir * len;
+            lineEl.setAttribute('x1', 0); lineEl.setAttribute('y1', 0);
+            lineEl.setAttribute('x2', x2); lineEl.setAttribute('y2', 0);
+            if (len > 4) {
+                const hw = 6, hl = 9;
+                headEl.setAttribute('points', `${x2},0 ${x2 - dir*hl},${-hw/2} ${x2 - dir*hl},${hw/2}`);
+            } else { headEl.setAttribute('points', '0,0'); }
+            if (len > 8) {
+                labelEl.setAttribute('x', x2/2);
+                labelEl.setAttribute('y', isV ? -7 : 12);
+                labelEl.textContent = isV ? `v=${Math.abs(val).toFixed(1)}` : `a=${val.toFixed(1)}`;
+            } else { labelEl.textContent = ''; }
+        }
+
+        setArrow(
+            document.getElementById('vec-v-line'),
+            document.getElementById('vec-v-head'),
+            document.getElementById('vec-v-label'),
+            vLen, v, 0, true
+        );
+        setArrow(
+            document.getElementById('vec-a-line'),
+            document.getElementById('vec-a-head'),
+            document.getElementById('vec-a-label'),
+            aLen, a, 0, false
+        );
+    }
+
+    function checkRadar(v, t, s, radarLimit) {
+        if (radarFired) return;
+        const roadW = road.offsetWidth;
+        const radarX = roadW - 80;
+        if (carX >= radarX - 30 && v > radarLimit) {
+            radarFired = true;
+            const flash = document.getElementById('radar-flash');
+            flash.classList.add('flash');
+            setTimeout(() => flash.classList.remove('flash'), 200);
+            const ticket = document.getElementById('ticket');
+            document.getElementById('ticket-v').textContent = `Vel: ${v.toFixed(2)} m/s (lim: ${radarLimit})`;
+            document.getElementById('ticket-t').textContent = `Tempo: ${t.toFixed(2)} s`;
+            document.getElementById('ticket-s').textContent = `Posição: ${s.toFixed(2)} m`;
+            ticket.classList.add('show');
+            setTimeout(() => ticket.classList.remove('show'), 5000);
+        }
+    }
+
+    function resetSim() {
+        running = false;
+        cancelAnimationFrame(raf);
+        simT = 0; carX = 0; lastReal = null; radarFired = false;
+
+        const carSvg = document.getElementById('car-svg');
+        carSvg.style.transform = 'translateX(0px)';
+
+        updateFormula();
+        const {v0, a} = getParams();
+        document.getElementById('sv').innerHTML = `${v0.toFixed(2)} <small style="font-size:.6em">m/s</small>`;
+        document.getElementById('sa').innerHTML = `${a.toFixed(1)} <small style="font-size:.6em">m/s²</small>`;
+        document.getElementById('st').innerHTML = `0.00 <small style="font-size:.6em">s</small>`;
+        document.getElementById('ss').innerHTML = `0.00 <small style="font-size:.6em">m</small>`;
+
+        drawVectors(v0, a);
+
+        // Seed t=0 so the line always starts anchored at the origin
+        chartV.data.labels = ['0.0']; chartV.data.datasets[0].data = [+v0.toFixed(2)]; chartV.update();
+        chartS.data.labels = ['0.0']; chartS.data.datasets[0].data = [0]; chartS.update();
+
+        // Clear visual effects
+        document.querySelectorAll('.tire-mark, .smoke-particle').forEach(e => e.remove());
+    }
+
+    function startSim() {
+        if (running) return;
+        running = true;
+        lastReal = null;
+        const {v0, a, radarLimit} = getParams();
+        const roadW = road.offsetWidth;
+        const carStartX = 20;
+        carX = carStartX;
+
+        function loop(ts) {
+            if (!running) return;
+            if (!lastReal) { lastReal = ts; }
+            const dtReal = (ts - lastReal) / 1000;
+            lastReal = ts;
+            simT += dtReal * simSpeed;
+
+            let v = v0 + a * simT;
+            if (v < 0) v = 0;
+
+            // s = v0*t + 0.5*a*t^2  (scaled for screen)
+            const s_phys = v0 * simT + 0.5 * a * simT * simT;
+            carX = carStartX + s_phys * 4;
+
+            // Update car position
+            document.getElementById('car-svg').style.transform = `translateX(${carX}px)`;
+
+            // Update stats
+            document.getElementById('sv').innerHTML = `${v.toFixed(2)} <small style="font-size:.6em">m/s</small>`;
+            document.getElementById('sa').innerHTML = `${a.toFixed(1)} <small style="font-size:.6em">m/s²</small>`;
+            document.getElementById('st').innerHTML = `${simT.toFixed(2)} <small style="font-size:.6em">s</small>`;
+            document.getElementById('ss').innerHTML = `${s_phys.toFixed(2)} <small style="font-size:.6em">m</small>`;
+
+            drawVectors(v, a);
+            checkRadar(v, simT, s_phys, radarLimit);
+
+            // Graph — push every ~0.1s of sim time
+            const tLabel = simT.toFixed(1);
+            if (!chartV.data.labels.includes(tLabel)) {
+                chartV.data.labels.push(tLabel);
+                chartV.data.datasets[0].data.push(+v.toFixed(2));
+                chartV.update('none');
+                chartS.data.labels.push(tLabel);
+                chartS.data.datasets[0].data.push(+s_phys.toFixed(2));
+                chartS.update('none');
+            }
+
+            if (carX > roadW - 40 || simT > 20 || (a < 0 && v <= 0)) {
+                running = false;
+                // ── EFFECTS on road end ──
+                if (carX > roadW - 40 && a >= 3) {
+                    spawnTireMarks(carX, roadW);
+                    spawnSmoke(carX);
+                }
+                return;
+            }
+            raf = requestAnimationFrame(loop);
+        }
+        raf = requestAnimationFrame(loop);
+    }
+
+    function spawnTireMarks(fromX, roadW) {
+        const road = document.getElementById('road');
+        // Two parallel marks (wheel tracks)
+        [8, 14].forEach(offsetY => {
+            const mark = document.createElement('div');
+            mark.className = 'tire-mark';
+            const len = Math.min(roadW - fromX + 30, 90);
+            mark.style.left  = (fromX - 10) + 'px';
+            mark.style.width = len + 'px';
+            mark.style.bottom = offsetY + 'px';
+            road.appendChild(mark);
+        });
+    }
+
+    function spawnSmoke(x) {
+        const road = document.getElementById('road');
+        const colors = ['rgba(180,180,180,0.55)', 'rgba(140,140,140,0.4)', 'rgba(200,200,200,0.35)'];
+        for (let i = 0; i < 9; i++) {
+            const p = document.createElement('div');
+            p.className = 'smoke-particle';
+            const size = 10 + Math.random() * 18;
+            p.style.width  = size + 'px';
+            p.style.height = size + 'px';
+            p.style.left   = (x - 10 + (Math.random() - 0.5) * 20) + 'px';
+            p.style.bottom = (12 + Math.random() * 14) + 'px';
+            p.style.background = colors[i % colors.length];
+            p.style.animationDelay = (Math.random() * 0.35) + 's';
+            road.appendChild(p);
+            setTimeout(() => p.remove(), 1600);
+        }
+    }
+
+    function switchGraph(key, btn) {
+        document.querySelectorAll('.graph-pane').forEach(p => p.classList.remove('active'));
+        document.querySelectorAll('.graph-tab-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById('gpane-' + key).classList.add('active');
+        btn.classList.add('active');
+        // Let Chart.js recalculate size after the pane becomes visible
+        requestAnimationFrame(() => {
+            if (key === 'V') chartV.resize();
+            else chartS.resize();
+        });
+    }
+
+    function showTab(name) {
+        document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById('tab-' + name).classList.add('active');
+        event.target.classList.add('active');
+    }
+
+    // Init
+    resetSim();
+</script>
+</body>
+</html>

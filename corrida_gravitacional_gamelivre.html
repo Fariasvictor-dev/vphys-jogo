@@ -1,0 +1,880 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<title>V-PHYS | Corrida Gravitacional</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.2/peerjs.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+:root{
+  --verde:#2ecc71;--azul:#3498db;--verm:#e74c3c;--amarelo:#f1c40f;--roxo:#a29bfe;
+  --bg:#060d09;--panel:#0d1a10;--panel2:#0a1409;
+  --border:rgba(46,204,113,.16);--text:#dff0e6;--dim:rgba(223,240,230,.46);
+  --gold:#f1c40f;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  font-family:'Outfit',sans-serif;
+  background:var(--bg);
+  color:var(--text);
+  min-height:100vh;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  padding:0 14px 40px;
+  overflow-x:hidden;
+}
+
+/* Stars background */
+body::before{
+  content:'';
+  position:fixed;inset:0;
+  background:
+    radial-gradient(circle at 20% 20%, rgba(46,204,113,.03) 0%, transparent 55%),
+    radial-gradient(circle at 80% 80%, rgba(52,152,219,.03) 0%, transparent 55%);
+  pointer-events:none;z-index:0;
+}
+.star-field{position:fixed;inset:0;pointer-events:none;z-index:0;overflow:hidden}
+.star{position:absolute;border-radius:50%;background:#fff}
+
+/* ── HEADER ── */
+.hdr{
+  width:100%;max-width:960px;
+  display:flex;justify-content:space-between;align-items:flex-end;
+  border-bottom:1px solid var(--verde);
+  padding:18px 0 11px;margin-bottom:20px;
+  position:relative;z-index:1;
+}
+.hdr-l{display:flex;flex-direction:column;gap:4px}
+.badge{background:var(--verde);color:#000;padding:3px 10px;border-radius:4px;font-weight:700;font-size:.68rem;letter-spacing:.08em}
+.hdr h1{font-size:1.3rem;font-weight:700;letter-spacing:-.01em}
+.brand{color:var(--verde);font-family:'Space Mono',monospace;font-size:.68rem;letter-spacing:.12em}
+
+/* ── VIEWS ── */
+.view{display:none;width:100%;max-width:960px;position:relative;z-index:1;animation:fadeIn .35s ease}
+.view.active{display:block}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
+/* ── CARDS ── */
+.card{
+  background:var(--panel);border:1px solid var(--border);
+  border-radius:14px;padding:24px;margin-bottom:16px;
+}
+.card-title{font-size:.72rem;text-transform:uppercase;letter-spacing:.09em;color:var(--verde);font-weight:700;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.card-title::before{content:'';width:3px;height:14px;background:var(--verde);border-radius:2px;display:block}
+
+/* ── MODE SELECTION ── */
+.mode-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;max-width:600px;margin:0 auto}
+.mode-card{
+  background:var(--panel2);border:1px solid var(--border);border-radius:14px;
+  padding:28px 24px;cursor:pointer;transition:all .2s;text-align:center;
+}
+.mode-card:hover{border-color:var(--verde);background:rgba(46,204,113,.06);transform:translateY(-2px)}
+.mode-card .mi{font-size:2.4rem;margin-bottom:12px}
+.mode-card h3{font-size:.95rem;font-weight:700;margin-bottom:6px}
+.mode-card p{font-size:.75rem;color:var(--dim);line-height:1.5}
+
+/* ── QR / ROOM ── */
+.qr-wrap{
+  display:flex;align-items:center;gap:32px;flex-wrap:wrap;
+}
+.qr-box{
+  background:#fff;padding:12px;border-radius:10px;flex-shrink:0;
+}
+.room-info{flex:1;min-width:200px}
+.room-code{
+  font-family:'Space Mono',monospace;font-size:1.5rem;font-weight:700;
+  color:var(--gold);letter-spacing:.12em;
+  background:rgba(241,196,15,.07);border:1px solid rgba(241,196,15,.2);
+  padding:12px 18px;border-radius:8px;margin-bottom:12px;display:block;text-align:center;
+}
+.room-url{font-size:.72rem;color:var(--dim);font-family:'Space Mono',monospace;word-break:break-all;line-height:1.6;margin-bottom:14px}
+
+/* ── LEADERBOARD ── */
+.lb-list{list-style:none;display:flex;flex-direction:column;gap:8px;margin-top:8px}
+.lb-item{
+  display:flex;align-items:center;gap:12px;
+  background:rgba(255,255,255,.02);border:1px solid rgba(46,204,113,.1);
+  border-radius:8px;padding:11px 16px;
+  animation:slideIn .3s ease;
+  transition:all .3s;
+}
+.lb-item.done{border-color:var(--verde);background:rgba(46,204,113,.06)}
+.lb-item.done .lb-bar-fill{background:var(--verde)}
+.lb-rank{font-family:'Space Mono',monospace;font-size:.78rem;color:var(--dim);width:22px;text-align:center;flex-shrink:0}
+.lb-rank.gold{color:var(--gold)}
+.lb-rank.silver{color:#aaa}
+.lb-rank.bronze{color:#cd7f32}
+.lb-name{font-weight:600;font-size:.88rem;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lb-progress{font-family:'Space Mono',monospace;font-size:.72rem;color:var(--dim);flex-shrink:0;margin-right:8px}
+.lb-progress.done-txt{color:var(--verde)}
+.lb-bar-bg{width:90px;height:5px;background:rgba(255,255,255,.07);border-radius:3px;overflow:hidden;flex-shrink:0}
+.lb-bar-fill{height:100%;background:var(--azul);border-radius:3px;transition:width .4s ease}
+.lb-score{font-family:'Space Mono',monospace;font-size:.78rem;color:var(--amarelo);flex-shrink:0;width:48px;text-align:right}
+.lb-time{font-family:'Space Mono',monospace;font-size:.68rem;color:var(--dim);flex-shrink:0;width:40px;text-align:right}
+
+/* ── STATS ROW (professor) ── */
+.stats-row{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px}
+.stat-box{background:var(--panel2);border-radius:8px;padding:12px;border:1px solid var(--border);text-align:center}
+.stat-box .sl{font-size:.6rem;text-transform:uppercase;letter-spacing:.07em;color:var(--dim);margin-bottom:3px}
+.stat-box .sv{font-family:'Space Mono',monospace;font-size:1.3rem;font-weight:700}
+
+/* ── BUTTONS ── */
+.btn{
+  padding:12px 22px;border-radius:8px;font-weight:700;cursor:pointer;
+  font-family:'Outfit',sans-serif;font-size:.88rem;letter-spacing:.03em;
+  transition:all .18s;border:none;display:inline-flex;align-items:center;gap:7px;
+}
+.btn-primary{background:var(--verde);color:#000}
+.btn-primary:hover{filter:brightness(1.1)}
+.btn-secondary{background:rgba(46,204,113,.1);color:var(--verde);border:1px solid var(--verde)}
+.btn-secondary:hover{background:rgba(46,204,113,.2)}
+.btn-danger{background:rgba(231,76,60,.1);color:var(--verm);border:1px solid rgba(231,76,60,.3)}
+.btn-danger:hover{background:rgba(231,76,60,.2)}
+.btn-azul{background:var(--azul);color:#fff}
+.btn-azul:hover{filter:brightness(1.1)}
+.btn-full{width:100%;justify-content:center}
+.btn-lg{padding:15px 28px;font-size:1rem}
+
+/* ── INPUT ── */
+.input-field{
+  width:100%;padding:13px 16px;
+  background:#000;border:1px solid var(--border);
+  color:var(--text);font-family:'Space Mono',monospace;font-size:.9rem;
+  border-radius:8px;outline:none;transition:border-color .18s;margin-bottom:12px;
+}
+.input-field:focus{border-color:var(--verde)}
+.input-field::placeholder{color:rgba(223,240,230,.25)}
+
+/* ── WAIT SCREEN ── */
+.pulse-ring{
+  width:90px;height:90px;border-radius:50%;
+  border:2px solid var(--verde);margin:20px auto;
+  display:flex;align-items:center;justify-content:center;
+  position:relative;font-size:2rem;
+}
+.pulse-ring::before,.pulse-ring::after{
+  content:'';position:absolute;inset:0;border-radius:50%;
+  border:1px solid var(--verde);animation:pulse-out 2s infinite;
+}
+.pulse-ring::after{animation-delay:.7s}
+@keyframes pulse-out{
+  0%{transform:scale(1);opacity:.7}
+  100%{transform:scale(1.9);opacity:0}
+}
+
+/* ── QUIZ ── */
+.quiz-top{display:flex;align-items:center;gap:12px;margin-bottom:18px;flex-wrap:wrap}
+.quiz-counter{font-family:'Space Mono',monospace;font-size:.75rem;color:var(--dim)}
+.timer-bar-bg{flex:1;height:6px;background:rgba(255,255,255,.07);border-radius:3px;overflow:hidden;min-width:80px}
+.timer-bar-fill{height:100%;background:var(--verde);border-radius:3px;transition:width .1s linear;transform-origin:left}
+.timer-val{font-family:'Space Mono',monospace;font-size:.75rem;color:var(--verde);width:30px;text-align:right}
+.q-number{font-size:.68rem;text-transform:uppercase;letter-spacing:.09em;color:var(--verde);margin-bottom:10px;font-weight:700}
+.q-text{font-size:1rem;font-weight:600;line-height:1.5;margin-bottom:22px;color:var(--text)}
+.options-grid{display:flex;flex-direction:column;gap:10px}
+.opt-btn{
+  width:100%;padding:14px 18px;border-radius:9px;
+  background:rgba(255,255,255,.03);
+  border:1px solid rgba(46,204,113,.15);
+  color:var(--text);font-family:'Outfit',sans-serif;font-size:.9rem;font-weight:500;
+  cursor:pointer;text-align:left;transition:all .16s;display:flex;align-items:center;gap:12px;
+}
+.opt-btn:hover:not(:disabled){background:rgba(46,204,113,.08);border-color:rgba(46,204,113,.4)}
+.opt-btn .opt-letter{
+  width:28px;height:28px;border-radius:6px;flex-shrink:0;
+  background:rgba(46,204,113,.1);border:1px solid rgba(46,204,113,.25);
+  display:flex;align-items:center;justify-content:center;
+  font-family:'Space Mono',monospace;font-size:.72rem;font-weight:700;color:var(--verde);
+}
+.opt-btn.correct{background:rgba(46,204,113,.14);border-color:var(--verde)}
+.opt-btn.correct .opt-letter{background:var(--verde);color:#000}
+.opt-btn.wrong{background:rgba(231,76,60,.1);border-color:var(--verm)}
+.opt-btn.wrong .opt-letter{background:var(--verm);color:#fff}
+.opt-btn:disabled{cursor:default;opacity:.7}
+
+/* Feedback flash */
+.feedback-flash{
+  padding:12px 18px;border-radius:8px;font-weight:700;font-size:.9rem;
+  margin-top:12px;text-align:center;display:none;animation:pop .25s ease;
+}
+.feedback-flash.ok{background:rgba(46,204,113,.15);border:1px solid var(--verde);color:var(--verde)}
+.feedback-flash.nok{background:rgba(231,76,60,.12);border:1px solid var(--verm);color:var(--verm)}
+@keyframes pop{0%{transform:scale(.94)}100%{transform:scale(1)}}
+
+/* Progress mini-bar */
+.mini-progress-wrap{margin-top:14px}
+.mini-progress-label{display:flex;justify-content:space-between;font-size:.68rem;color:var(--dim);margin-bottom:5px;font-family:'Space Mono',monospace}
+.mini-progress-bg{height:4px;background:rgba(255,255,255,.06);border-radius:2px;overflow:hidden}
+.mini-progress-fill{height:100%;background:var(--verde);border-radius:2px;transition:width .4s ease}
+
+/* ── DONE SCREEN ── */
+.score-big{
+  font-family:'Space Mono',monospace;font-size:3rem;font-weight:700;
+  color:var(--verde);text-align:center;margin:16px 0 6px;
+}
+.score-sub{font-size:.8rem;color:var(--dim);text-align:center;margin-bottom:20px}
+.result-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px}
+.rg-box{background:var(--panel2);border-radius:8px;padding:12px;border:1px solid var(--border);text-align:center}
+.rg-label{font-size:.6rem;text-transform:uppercase;letter-spacing:.07em;color:var(--dim);margin-bottom:4px}
+.rg-val{font-family:'Space Mono',monospace;font-size:1.1rem;font-weight:700}
+
+/* ── CONNECTING overlay ── */
+.connecting{
+  text-align:center;padding:30px 20px;
+}
+.connecting .spin{
+  width:44px;height:44px;border-radius:50%;
+  border:2px solid rgba(46,204,113,.2);border-top-color:var(--verde);
+  animation:spin .7s linear infinite;margin:0 auto 14px;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── QUESTION CHART (professor) ── */
+.q-stat-item{display:flex;align-items:center;gap:10px;margin-bottom:8px;font-size:.8rem}
+.q-stat-bar-bg{flex:1;height:8px;background:rgba(255,255,255,.06);border-radius:4px;overflow:hidden}
+.q-stat-bar-fill{height:100%;background:var(--azul);border-radius:4px;transition:width .5s ease}
+
+/* ── NOTIFY TOAST ── */
+.toast{
+  position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);
+  background:var(--panel);border:1px solid var(--verde);color:var(--verde);
+  padding:10px 22px;border-radius:30px;font-family:'Space Mono',monospace;font-size:.78rem;
+  z-index:999;transition:transform .3s ease;pointer-events:none;
+}
+.toast.show{transform:translateX(-50%) translateY(0)}
+
+@keyframes slideIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+.hidden{display:none!important}
+</style>
+</head>
+<body>
+
+<!-- Stars -->
+<div class="star-field" id="stars"></div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<!-- HEADER -->
+<div class="hdr" style="z-index:1;position:relative">
+  <div class="hdr-l">
+    <span class="badge">QUIZ INTERATIVO · GRAVITAÇÃO</span>
+    <h1>V-PHYS // CORRIDA GRAVITACIONAL</h1>
+  </div>
+  <div class="brand">V-PHYS</div>
+</div>
+
+<!-- ══ VIEW: MODE SELECT ══ -->
+<div class="view active" id="v-mode">
+  <div style="text-align:center;margin-bottom:28px">
+    <p style="color:var(--dim);font-size:.88rem">Selecione o modo de acesso para começar</p>
+  </div>
+  <div class="mode-grid">
+    <div class="mode-card" onclick="enterTeacher()">
+      <div class="mi">🖥️</div>
+      <h3>Modo Professor</h3>
+      <p>Crie uma sala, projete o painel e acompanhe o progresso da turma em tempo real</p>
+    </div>
+    <div class="mode-card" onclick="enterStudent()">
+      <div class="mi">📱</div>
+      <h3>Modo Aluno</h3>
+      <p>Entre com um código de sala ou escaneie o QR Code fornecido pelo professor</p>
+    </div>
+  </div>
+</div>
+
+<!-- ══ VIEW: TEACHER ══ -->
+<div class="view" id="v-teacher">
+  <!-- Room info -->
+  <div class="card">
+    <div class="card-title">🌐 Sala da Missão</div>
+    <div class="qr-wrap">
+      <div class="qr-box" id="qrcode"></div>
+      <div class="room-info">
+        <span class="room-code" id="room-code-display">Gerando...</span>
+        <div class="room-url" id="room-url-display">—</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-secondary" onclick="copyLink()">📋 Copiar Link</button>
+          <button class="btn btn-primary" id="btn-start" onclick="startGame()" style="flex:1;justify-content:center">
+            🚀 LANÇAR MISSÃO
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats-row">
+    <div class="stat-box">
+      <div class="sl">Conectados</div>
+      <div class="sv" id="stat-connected" style="color:var(--verde)">0</div>
+    </div>
+    <div class="stat-box">
+      <div class="sl">Concluídos</div>
+      <div class="sv" id="stat-done" style="color:var(--amarelo)">0</div>
+    </div>
+    <div class="stat-box">
+      <div class="sl">Status</div>
+      <div class="sv" id="stat-status" style="color:var(--dim);font-size:.85rem">Aguardando</div>
+    </div>
+  </div>
+
+  <!-- Leaderboard -->
+  <div class="card">
+    <div class="card-title">🏆 Placar dos Astronautas</div>
+    <ul class="lb-list" id="leaderboard">
+      <li style="text-align:center;color:var(--dim);font-size:.8rem;padding:20px;list-style:none">
+        Nenhum aluno conectado ainda...
+      </li>
+    </ul>
+  </div>
+
+  <!-- Question accuracy (shows after game starts) -->
+  <div class="card hidden" id="q-accuracy-card">
+    <div class="card-title">📊 Acertos por Questão</div>
+    <div id="q-accuracy-list"></div>
+  </div>
+
+  <button class="btn btn-danger" onclick="resetTeacher()" style="margin-top:4px">↺ Nova Sessão</button>
+</div>
+
+<!-- ══ VIEW: STUDENT LOGIN ══ -->
+<div class="view" id="v-student-login">
+  <div class="card" style="max-width:480px;margin:0 auto">
+    <div class="card-title">🚀 Identificação do Piloto</div>
+    <p style="font-size:.82rem;color:var(--dim);margin-bottom:18px;line-height:1.6">
+      Insira seu nome e o código da sala fornecido pelo professor para entrar na missão.
+    </p>
+    <input class="input-field" id="stud-name" type="text" placeholder="SEU NOME..." maxlength="24">
+    <input class="input-field" id="stud-room" type="text" placeholder="CÓDIGO DA SALA (ex: VPHYS-1234)" style="text-transform:uppercase">
+    <button class="btn btn-primary btn-full btn-lg" onclick="joinRoom()">⚡ CONECTAR À NAVE MÃE</button>
+    <button class="btn btn-secondary btn-full" onclick="goMode()" style="margin-top:8px">← Voltar</button>
+  </div>
+</div>
+
+<!-- ══ VIEW: STUDENT WAIT ══ -->
+<div class="view" id="v-student-wait">
+  <div class="card" style="max-width:480px;margin:0 auto;text-align:center">
+    <div class="pulse-ring">🛸</div>
+    <h2 style="font-size:1.1rem;font-weight:700;margin-bottom:10px">Sistema Pronto</h2>
+    <p style="color:var(--dim);font-size:.85rem;line-height:1.6;margin-bottom:18px">
+      Aguardando autorização do Professor para iniciar a contagem regressiva...
+    </p>
+    <div style="font-family:'Space Mono',monospace;font-size:.72rem;color:rgba(46,204,113,.4)" id="stud-room-display"></div>
+  </div>
+</div>
+
+<!-- ══ VIEW: STUDENT CONNECTING ══ -->
+<div class="view" id="v-connecting">
+  <div class="connecting" style="max-width:480px;margin:0 auto">
+    <div class="spin"></div>
+    <p style="font-family:'Space Mono',monospace;font-size:.78rem;color:var(--dim)">Conectando à Nave Mãe...</p>
+  </div>
+</div>
+
+<!-- ══ VIEW: STUDENT QUIZ ══ -->
+<div class="view" id="v-quiz">
+  <div style="max-width:560px;margin:0 auto">
+    <div class="card">
+      <div class="quiz-top">
+        <span class="quiz-counter" id="q-counter">1 / 7</span>
+        <div class="timer-bar-bg"><div class="timer-bar-fill" id="timer-bar" style="width:100%"></div></div>
+        <span class="timer-val" id="timer-val">20</span>
+      </div>
+      <div class="q-number" id="q-num-label">QUESTÃO 1</div>
+      <div class="q-text" id="q-text">—</div>
+      <div class="options-grid" id="q-options"></div>
+      <div class="feedback-flash" id="q-feedback"></div>
+      <div class="mini-progress-wrap">
+        <div class="mini-progress-label">
+          <span>Progresso da Missão</span>
+          <span id="prog-label">0 / 7</span>
+        </div>
+        <div class="mini-progress-bg"><div class="mini-progress-fill" id="prog-fill" style="width:0%"></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ VIEW: STUDENT DONE ══ -->
+<div class="view" id="v-done">
+  <div style="max-width:480px;margin:0 auto">
+    <div class="card" style="text-align:center">
+      <div style="font-size:2.5rem;margin-bottom:10px" id="done-emoji">🚀</div>
+      <h2 style="font-size:1.2rem;font-weight:700;margin-bottom:6px" id="done-title">MISSÃO CONCLUÍDA!</h2>
+      <p style="color:var(--dim);font-size:.8rem;margin-bottom:16px" id="done-sub">Resultados enviados para o painel do professor</p>
+      <div class="score-big" id="done-score">0</div>
+      <div class="score-sub" id="done-score-sub">pontos conquistados</div>
+      <div class="result-grid">
+        <div class="rg-box">
+          <div class="rg-label">Acertos</div>
+          <div class="rg-val" id="done-correct" style="color:var(--verde)">0/7</div>
+        </div>
+        <div class="rg-box">
+          <div class="rg-label">Tempo</div>
+          <div class="rg-val" id="done-time" style="color:var(--azul)">0s</div>
+        </div>
+        <div class="rg-box">
+          <div class="rg-label">Ranking</div>
+          <div class="rg-val" id="done-rank" style="color:var(--amarelo)">—</div>
+        </div>
+      </div>
+      <p style="font-size:.78rem;color:var(--dim);line-height:1.6">
+        Seus resultados estão sendo exibidos no painel da sala. Aguarde o professor para discutir as questões!
+      </p>
+    </div>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════
+//  STARS
+// ══════════════════════════════════════
+;(()=>{
+  const f=document.getElementById('stars');
+  for(let i=0;i<130;i++){
+    const s=document.createElement('div');
+    s.className='star';
+    const sz=Math.random()*1.4+.15;
+    s.style.cssText=`width:${sz}px;height:${sz}px;left:${Math.random()*100}%;top:${Math.random()*100}%;opacity:${.08+Math.random()*.65}`;
+    f.appendChild(s);
+  }
+})();
+
+// ══════════════════════════════════════
+//  QUESTIONS
+// ══════════════════════════════════════
+const QUESTIONS=[
+  {
+    q:"Se a distância entre dois planetas for duplicada, a força gravitacional entre eles:",
+    o:["Aumenta 4 vezes","Diminui 2 vezes","Diminui 4 vezes","Permanece igual"],
+    c:2,
+    exp:"F = G·M₁·M₂/r². Se r dobra, r² quadruplica, então F cai para ¼."
+  },
+  {
+    q:"A Terra atrai você com uma força F. Com que força você atrai a Terra?",
+    o:["F/2 — a Terra é maior","F/6 — proporcional à massa","Mesma força F (3ª Lei de Newton)","Zero — você é muito pequeno"],
+    c:2,
+    exp:"Pela 3ª Lei de Newton (ação e reação), forças são iguais em módulo, mesmo com massas muito diferentes."
+  },
+  {
+    q:"Quando um planeta no Periélio se aproxima do Sol, sua velocidade orbital:",
+    o:["Aumenta — gravidade maior faz acelerar","Diminui — resistência do espaço","Zera no ponto mais próximo","Permanece constante — espaço vazio"],
+    c:0,
+    exp:"No periélio a força gravitacional é máxima, acelerando o planeta. É a 2ª Lei de Kepler: áreas iguais em tempos iguais."
+  },
+  {
+    q:"Qual grandeza NÃO aparece na fórmula da Gravitação Universal?",
+    o:["Constante Gravitacional G","Massa dos dois corpos","Velocidade dos corpos","Distância entre os centros"],
+    c:2,
+    exp:"F = G·M₁·M₂/r² depende de G, das massas e da distância. A velocidade não é um fator direto."
+  },
+  {
+    q:"Se a massa de um planeta dobrar (mantendo r constante), a força gravitacional:",
+    o:["Aumenta 4 vezes","Aumenta 2 vezes","Diminui 2 vezes","Não muda"],
+    c:1,
+    exp:"F é diretamente proporcional ao produto das massas. Dobrar M₂ dobra F."
+  },
+  {
+    q:"A órbita dos planetas ao redor do Sol é, segundo Kepler:",
+    o:["Sempre circular perfeita","Elíptica, com o Sol em um dos focos","Espiral que vai se fechando","Parabólica, como projéteis"],
+    c:1,
+    exp:"1ª Lei de Kepler: as órbitas são elipses com o Sol em um dos focos, não no centro."
+  },
+  {
+    q:"No Afélio (ponto mais distante do Sol), comparado ao Periélio, a velocidade do planeta é:",
+    o:["Igual — espaço é vácuo","Maior — está mais longe","Menor — força gravitacional menor","Zero — ponto de parada"],
+    c:2,
+    exp:"No afélio a gravidade é mínima, então a velocidade é mínima. Energia total se conserva (vis-viva)."
+  },
+];
+
+const TOTAL_Q=QUESTIONS.length;
+const Q_TIME=25; // seconds per question
+
+// ══════════════════════════════════════
+//  STATE
+// ══════════════════════════════════════
+let peer=null,conn=null;
+let connections={};   // teacher: peerId → {conn, data}
+let mode='';          // 'teacher' | 'student'
+let gameStarted=false;
+let roomCode='';
+
+// Student state
+let currentQ=0,score=0,correct=0;
+let timerInterval=null,timerLeft=Q_TIME,questionStart=0;
+let totalTime=0,sessionStart=0;
+let wrongOnCurrent=false;
+
+// Teacher state: question accuracy tracker
+let qAccuracy=Array(TOTAL_Q).fill(null).map(()=>({right:0,wrong:0}));
+
+// ══════════════════════════════════════
+//  VIEW SWITCH
+// ══════════════════════════════════════
+const VIEWS=['v-mode','v-teacher','v-student-login','v-student-wait','v-connecting','v-quiz','v-done'];
+function showView(id){VIEWS.forEach(v=>{const e=document.getElementById(v);if(e){e.classList.remove('active');e.style.display='none';}});const t=document.getElementById(id);if(t){t.style.display='block';setTimeout(()=>t.classList.add('active'),10);}}
+
+// ══════════════════════════════════════
+//  TOAST
+// ══════════════════════════════════════
+let toastTimer=null;
+function toast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>t.classList.remove('show'),2800);
+}
+
+// ══════════════════════════════════════
+//  MODE SELECT
+// ══════════════════════════════════════
+function goMode(){showView('v-mode');}
+
+function enterTeacher(){
+  mode='teacher';
+  showView('v-teacher');
+  initTeacher();
+}
+
+function enterStudent(){
+  mode='student';
+  // Check URL param
+  const p=new URLSearchParams(window.location.search);
+  const rc=p.get('room');
+  if(rc){
+    document.getElementById('stud-room').value=rc.toUpperCase();
+  }
+  showView('v-student-login');
+}
+
+// ══════════════════════════════════════
+//  TEACHER
+// ══════════════════════════════════════
+function initTeacher(){
+  roomCode='VPHYS-'+Math.floor(1000+Math.random()*9000);
+  document.getElementById('room-code-display').textContent=roomCode;
+  document.getElementById('stat-status').textContent='Aguardando';
+
+  peer=new Peer(roomCode,{debug:0});
+  peer.on('open',()=>{
+    const url=window.location.href.split('?')[0]+'?room='+roomCode;
+    document.getElementById('room-url-display').textContent=url;
+    try{
+      new QRCode(document.getElementById('qrcode'),{text:url,width:180,height:180,colorDark:'#000',colorLight:'#fff'});
+    }catch(e){}
+    toast('✅ Sala '+roomCode+' criada com sucesso!');
+  });
+
+  peer.on('connection',c=>{
+    c.on('open',()=>{
+      connections[c.peer]={conn:c,data:{name:'?',current:0,score:0,correct:0,done:false,time:0}};
+      updateTeacherStats();
+    });
+    c.on('data',d=>handleTeacherData(c.peer,d));
+    c.on('close',()=>{
+      delete connections[c.peer];
+      updateTeacherStats();
+      renderLeaderboard();
+    });
+  });
+  peer.on('error',e=>toast('⚠️ Erro: '+e.type));
+}
+
+function handleTeacherData(pid,d){
+  if(!connections[pid])return;
+  const st=connections[pid].data;
+  if(d.type==='join'){
+    st.name=d.name;
+    renderLeaderboard();
+    updateTeacherStats();
+    toast('🚀 '+d.name+' entrou na missão!');
+  }
+  if(d.type==='progress'){
+    st.current=d.current;st.score=d.score;st.correct=d.correct;
+    st.done=d.done;st.time=d.time||0;
+    renderLeaderboard();
+    updateTeacherStats();
+  }
+  if(d.type==='answer'){
+    // Track accuracy per question
+    if(d.correct) qAccuracy[d.qIdx].right++;
+    else qAccuracy[d.qIdx].wrong++;
+    renderQAccuracy();
+  }
+}
+
+function startGame(){
+  if(Object.keys(connections).length===0){toast('⚠️ Nenhum aluno conectado ainda!');return;}
+  gameStarted=true;
+  document.getElementById('btn-start').textContent='✅ Missão em Curso';
+  document.getElementById('btn-start').disabled=true;
+  document.getElementById('stat-status').textContent='Em curso';
+  document.getElementById('q-accuracy-card').classList.remove('hidden');
+  Object.values(connections).forEach(({conn:c})=>c.send({type:'start'}));
+  toast('🚀 Missão lançada para '+Object.keys(connections).length+' aluno(s)!');
+}
+
+function renderLeaderboard(){
+  const list=document.getElementById('leaderboard');
+  const arr=Object.values(connections)
+    .map(x=>x.data)
+    .filter(x=>x.name!=='?')
+    .sort((a,b)=>b.score-a.score||a.time-b.time);
+
+  if(arr.length===0){list.innerHTML='<li style="text-align:center;color:var(--dim);font-size:.8rem;padding:20px;list-style:none">Nenhum aluno conectado ainda...</li>';return;}
+
+  list.innerHTML='';
+  const rankColors=['gold','silver','bronze'];
+  arr.forEach((st,i)=>{
+    const li=document.createElement('li');
+    li.className='lb-item'+(st.done?' done':'');
+    const pct=st.current/TOTAL_Q*100;
+    const rankCls=rankColors[i]||'';
+    const rankLbl=i===0?'🥇':i===1?'🥈':i===2?'🥉':`#${i+1}`;
+    li.innerHTML=`
+      <span class="lb-rank ${rankCls}">${rankLbl}</span>
+      <span class="lb-name">${esc(st.name)}</span>
+      <span class="lb-progress ${st.done?'done-txt':''}">${st.done?'✓ CONCLUÍDO':st.current+'/'+TOTAL_Q}</span>
+      <div class="lb-bar-bg"><div class="lb-bar-fill" style="width:${pct}%"></div></div>
+      <span class="lb-score">${st.score} pts</span>
+      <span class="lb-time">${st.time?st.time+'s':''}</span>
+    `;
+    list.appendChild(li);
+  });
+}
+
+function updateTeacherStats(){
+  const all=Object.values(connections);
+  document.getElementById('stat-connected').textContent=all.length;
+  document.getElementById('stat-done').textContent=all.filter(x=>x.data.done).length;
+}
+
+function renderQAccuracy(){
+  const el=document.getElementById('q-accuracy-list');
+  el.innerHTML='';
+  qAccuracy.forEach((qa,i)=>{
+    const total=qa.right+qa.wrong;
+    const pct=total>0?Math.round(qa.right/total*100):0;
+    el.innerHTML+=`
+      <div class="q-stat-item">
+        <span style="font-family:'Space Mono',monospace;font-size:.7rem;color:var(--dim);width:18px">${i+1}</span>
+        <div class="q-stat-bar-bg"><div class="q-stat-bar-fill" style="width:${pct}%;background:${pct>=60?'var(--verde)':'var(--verm)'}"></div></div>
+        <span style="font-family:'Space Mono',monospace;font-size:.7rem;color:var(--dim);width:50px;text-align:right">${pct}% ✓</span>
+      </div>`;
+  });
+}
+
+function copyLink(){
+  const url=document.getElementById('room-url-display').textContent;
+  navigator.clipboard.writeText(url).then(()=>toast('📋 Link copiado!'));
+}
+
+function resetTeacher(){
+  if(peer){peer.destroy();peer=null;}
+  connections={};qAccuracy=Array(TOTAL_Q).fill(null).map(()=>({right:0,wrong:0}));
+  gameStarted=false;
+  document.getElementById('qrcode').innerHTML='';
+  showView('v-mode');
+}
+
+// ══════════════════════════════════════
+//  STUDENT
+// ══════════════════════════════════════
+function joinRoom(){
+  const name=document.getElementById('stud-name').value.trim();
+  const room=document.getElementById('stud-room').value.trim().toUpperCase();
+  if(!name){toast('⚠️ Insira seu nome!');return;}
+  if(!room){toast('⚠️ Insira o código da sala!');return;}
+  roomCode=room;
+  showView('v-connecting');
+
+  peer=new Peer(null,{debug:0});
+  peer.on('open',()=>{
+    conn=peer.connect(roomCode,{reliable:true});
+    conn.on('open',()=>{
+      conn.send({type:'join',name});
+      document.getElementById('stud-room-display').textContent='Sala: '+roomCode;
+      showView('v-student-wait');
+    });
+    conn.on('data',d=>{
+      if(d.type==='start'){
+        sessionStart=Date.now();
+        currentQ=0;score=0;correct=0;totalTime=0;
+        showView('v-quiz');
+        loadQuestion();
+      }
+    });
+    conn.on('error',e=>toast('⚠️ Erro de conexão: '+e));
+    conn.on('close',()=>toast('⚠️ Conexão com a sala perdida'));
+  });
+  peer.on('error',e=>{
+    showView('v-student-login');
+    toast('⚠️ Não foi possível conectar: '+e.type);
+  });
+}
+
+// ══════════════════════════════════════
+//  QUIZ ENGINE
+// ══════════════════════════════════════
+function loadQuestion(){
+  if(currentQ>=TOTAL_Q){finishQuiz();return;}
+
+  wrongOnCurrent=false;
+  questionStart=Date.now();
+  timerLeft=Q_TIME;
+  const q=QUESTIONS[currentQ];
+  const LETTERS=['A','B','C','D'];
+
+  document.getElementById('q-counter').textContent=`${currentQ+1} / ${TOTAL_Q}`;
+  document.getElementById('q-num-label').textContent=`QUESTÃO ${currentQ+1}`;
+  document.getElementById('q-text').textContent=q.q;
+  document.getElementById('timer-bar').style.width='100%';
+  document.getElementById('timer-bar').style.background='var(--verde)';
+  document.getElementById('timer-val').textContent=Q_TIME;
+  document.getElementById('q-feedback').style.display='none';
+
+  // Progress
+  const pct=(currentQ/TOTAL_Q)*100;
+  document.getElementById('prog-fill').style.width=pct+'%';
+  document.getElementById('prog-label').textContent=`${currentQ} / ${TOTAL_Q}`;
+
+  // Options
+  const optDiv=document.getElementById('q-options');
+  optDiv.innerHTML='';
+  q.o.forEach((opt,idx)=>{
+    const btn=document.createElement('button');
+    btn.className='opt-btn';
+    btn.innerHTML=`<span class="opt-letter">${LETTERS[idx]}</span><span>${esc(opt)}</span>`;
+    btn.onclick=()=>answerQuestion(idx,btn);
+    optDiv.appendChild(btn);
+  });
+
+  // Send progress
+  sendProgress(false);
+
+  // Start timer
+  clearInterval(timerInterval);
+  timerInterval=setInterval(()=>{
+    timerLeft--;
+    const pctT=timerLeft/Q_TIME*100;
+    document.getElementById('timer-bar').style.width=pctT+'%';
+    document.getElementById('timer-val').textContent=timerLeft;
+    if(timerLeft<=8) document.getElementById('timer-bar').style.background='var(--verm)';
+    else if(timerLeft<=15) document.getElementById('timer-bar').style.background='var(--amarelo)';
+    if(timerLeft<=0){
+      clearInterval(timerInterval);
+      timeOut();
+    }
+  },1000);
+}
+
+function answerQuestion(idx,btn){
+  clearInterval(timerInterval);
+  const q=QUESTIONS[currentQ];
+  const isCorrect=idx===q.c;
+  const timeTaken=(Date.now()-questionStart)/1000;
+  totalTime+=timeTaken;
+
+  // Disable all buttons
+  document.querySelectorAll('.opt-btn').forEach(b=>b.disabled=true);
+
+  // Highlight correct / wrong
+  document.querySelectorAll('.opt-btn').forEach((b,i)=>{
+    if(i===q.c) b.classList.add('correct');
+  });
+  if(!isCorrect) btn.classList.add('wrong');
+
+  // Score: correct + time bonus (if not wrong before)
+  let pts=0;
+  if(isCorrect && !wrongOnCurrent){
+    const bonus=Math.max(0,Math.round((timerLeft/Q_TIME)*60));
+    pts=40+bonus;
+    score+=pts;correct++;
+    showFeedback(true,`+${pts} pontos! ${q.exp}`);
+  } else if(isCorrect && wrongOnCurrent){
+    pts=10; score+=pts; correct++;
+    showFeedback(true,`+${pts} pontos (acertou após erro). ${q.exp}`);
+  } else {
+    wrongOnCurrent=true;
+    showFeedback(false,`Incorreto! ${q.exp}`);
+  }
+
+  // Send answer event
+  if(conn) conn.send({type:'answer',qIdx:currentQ,correct:isCorrect});
+
+  if(isCorrect){
+    setTimeout(()=>{currentQ++;loadQuestion();},2200);
+  } else {
+    // Re-enable for retry
+    setTimeout(()=>{
+      document.querySelectorAll('.opt-btn').forEach(b=>{b.disabled=false;b.classList.remove('wrong');});
+      document.querySelectorAll('.opt-btn').forEach((b,i)=>{if(i===q.c)b.classList.remove('correct');});
+      clearInterval(timerInterval);
+      // Shorter timer for retry
+      timerLeft=Math.max(10,timerLeft);
+      timerInterval=setInterval(()=>{
+        timerLeft--;
+        document.getElementById('timer-bar').style.width=(timerLeft/Q_TIME*100)+'%';
+        document.getElementById('timer-val').textContent=timerLeft;
+        if(timerLeft<=0){clearInterval(timerInterval);timeOut();}
+      },1000);
+    },2000);
+  }
+}
+
+function timeOut(){
+  // Skip question on timeout
+  const q=QUESTIONS[currentQ];
+  document.querySelectorAll('.opt-btn').forEach((b,i)=>{b.disabled=true;if(i===q.c)b.classList.add('correct');});
+  showFeedback(false,`⏱️ Tempo esgotado! Resposta: ${q.o[q.c]}. ${q.exp}`);
+  currentQ++;
+  setTimeout(()=>loadQuestion(),2500);
+}
+
+function showFeedback(ok,msg){
+  const fb=document.getElementById('q-feedback');
+  fb.className='feedback-flash '+(ok?'ok':'nok');
+  fb.textContent=msg;
+  fb.style.display='block';
+}
+
+function finishQuiz(){
+  clearInterval(timerInterval);
+  const elapsed=Math.round((Date.now()-sessionStart)/1000);
+  sendProgress(true,elapsed);
+
+  document.getElementById('done-score').textContent=score;
+  document.getElementById('done-correct').textContent=correct+'/'+TOTAL_Q;
+  document.getElementById('done-time').textContent=elapsed+'s';
+
+  const pct=Math.round(correct/TOTAL_Q*100);
+  if(pct>=80){document.getElementById('done-emoji').textContent='🏆';document.getElementById('done-title').textContent='MISSÃO PERFEITA!';}
+  else if(pct>=60){document.getElementById('done-emoji').textContent='🚀';document.getElementById('done-title').textContent='MISSÃO CONCLUÍDA!';}
+  else{document.getElementById('done-emoji').textContent='🛸';document.getElementById('done-title').textContent='MISSÃO ENCERRADA';}
+
+  showView('v-done');
+}
+
+function sendProgress(done,time){
+  if(!conn)return;
+  conn.send({type:'progress',current:currentQ,score,correct,done,time:time||0});
+}
+
+// ══════════════════════════════════════
+//  UTILS
+// ══════════════════════════════════════
+function esc(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML;}
+
+// URL param auto-routing
+;(()=>{
+  const p=new URLSearchParams(window.location.search);
+  if(p.get('room')){enterStudent();}
+})();
+</script>
+</body>
+</html>

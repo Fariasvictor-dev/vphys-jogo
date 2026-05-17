@@ -1,0 +1,1477 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>V-PHYS | Desafio de Fluxo Urbano</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&family=Exo+2:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --neon: #00ff88;
+            --neon2: #00aaff;
+            --gold: #f1c40f;
+            --bg: #050c14;
+            --panel: #06101a;
+            --border: rgba(0,255,136,0.18);
+            --accent: #ff6b35;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background: var(--bg);
+            color: #c8eedd;
+            font-family: 'Exo 2', sans-serif;
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+        }
+
+        body::after {
+            content:'';
+            position:fixed;
+            inset:0;
+            background: repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,0,0,0.07) 3px,rgba(0,0,0,0.07) 4px);
+            pointer-events:none;
+            z-index:999;
+        }
+
+        /* ══ VIEWPORT 3D ══ */
+        .city-viewport {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+            background: linear-gradient(180deg, #020810 0%, #040d1a 40%, #060f18 100%);
+        }
+
+        /* Estrelas de fundo */
+        .stars {
+            position: absolute;
+            inset: 0;
+            z-index: 0;
+        }
+
+        /* Grade isométrica 3D */
+        #cityCanvas {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        /* HUD do viewport */
+        .hud-corner {
+            position: absolute;
+            top: 16px;
+            left: 16px;
+            z-index: 20;
+            font-family: 'Share Tech Mono', monospace;
+            font-size: .55rem;
+            color: rgba(0,255,136,0.4);
+            letter-spacing: 2px;
+            line-height: 1.8;
+        }
+        .hud-corner span { color: var(--neon); }
+
+        .hud-top {
+            position: absolute;
+            top: 16px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 20;
+            font-family: 'Orbitron', monospace;
+            font-size: .65rem;
+            color: rgba(0,255,136,0.3);
+            letter-spacing: 4px;
+            text-transform: uppercase;
+        }
+
+        /* Velocímetro no viewport */
+        .speedometer {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 20;
+            text-align: center;
+        }
+        .speed-ring {
+            width: 90px;
+            height: 90px;
+            border-radius: 50%;
+            border: 2px solid rgba(0,255,136,0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            background: rgba(0,5,10,0.8);
+            box-shadow: 0 0 20px rgba(0,255,136,0.1), inset 0 0 20px rgba(0,0,0,0.5);
+            position: relative;
+        }
+        .speed-ring::before {
+            content: '';
+            position: absolute;
+            inset: 4px;
+            border-radius: 50%;
+            border: 1px solid rgba(0,255,136,0.08);
+        }
+        .speed-num {
+            font-family: 'Orbitron', monospace;
+            font-size: 1.4rem;
+            font-weight: 900;
+            color: var(--neon);
+            line-height: 1;
+        }
+        .speed-unit {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: .45rem;
+            color: rgba(0,255,136,0.4);
+            letter-spacing: 2px;
+        }
+        .speed-lbl {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: .42rem;
+            color: rgba(0,255,136,0.3);
+            letter-spacing: 2px;
+            margin-top: 6px;
+        }
+
+        /* Semáforo HUD */
+        .traffic-hud {
+            position: absolute;
+            top: 50%;
+            right: 30px;
+            transform: translateY(-50%);
+            z-index: 20;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            background: rgba(0,5,10,0.85);
+            border: 1px solid rgba(0,255,136,0.15);
+            padding: 12px 10px;
+            border-radius: 8px;
+        }
+        .tl-dot {
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.08);
+            transition: all .4s;
+        }
+        .tl-dot.red-on   { background: #ff3333; box-shadow: 0 0 14px #ff3333; }
+        .tl-dot.yellow-on { background: #f1c40f; box-shadow: 0 0 14px #f1c40f; }
+        .tl-dot.green-on  { background: #00ff88; box-shadow: 0 0 14px #00ff88; }
+
+        /* ══ PAINEL DIREITO ══ */
+        .controls {
+            width: 320px;
+            background: var(--panel);
+            border-left: 2px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            overflow: hidden;
+        }
+        .controls::before {
+            content:'';
+            position:absolute;
+            top:0;left:0;right:0;
+            height:2px;
+            background:linear-gradient(90deg,transparent,var(--neon),transparent);
+        }
+
+        /* Diálogo do Dr. Vektor */
+        .dialogue-area {
+            padding: 18px 18px 14px;
+            display: flex;
+            align-items: flex-end;
+            gap: 12px;
+            border-bottom: 1px solid rgba(0,255,136,0.08);
+            flex-shrink: 0;
+        }
+        .char-svg { flex-shrink: 0; filter: drop-shadow(0 0 10px rgba(0,255,136,0.3)); }
+
+        .bubble {
+            flex: 1;
+            background: linear-gradient(135deg,rgba(0,30,20,0.97),rgba(0,18,34,0.97));
+            border: 1.5px solid var(--neon);
+            border-radius: 10px 10px 10px 4px;
+            padding: 10px 13px;
+            position: relative;
+            box-shadow: 0 0 18px rgba(0,255,136,0.1);
+        }
+        .bubble-name {
+            font-family:'Orbitron',monospace;
+            font-size:.44rem;
+            letter-spacing:2px;
+            color:var(--neon);
+            opacity:.6;
+            margin-bottom:4px;
+        }
+        #dialogue-text {
+            font-size:.78rem;
+            line-height:1.6;
+            color:#dff5ec;
+        }
+        #dialogue-text strong { color:var(--neon); }
+        #dialogue-text em { color:#7dd8ff; font-style:normal; }
+        #dialogue-text .gold { color:var(--gold); font-weight:700; }
+
+        /* Corpo do painel */
+        .ctrl-body { padding: 14px 18px; flex: 1; display: flex; flex-direction: column; gap: 12px; overflow: hidden; }
+
+        /* Badge de nível */
+        .lvl-strip {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .lvl-badges { display: flex; gap: 5px; }
+        .lvl-badge {
+            width: 28px; height: 5px;
+            background: rgba(0,255,136,0.08);
+            border: 1px solid rgba(0,255,136,0.2);
+            border-radius: 3px;
+            transition: all .5s;
+        }
+        .lvl-badge.on {
+            background: linear-gradient(90deg, var(--neon), var(--neon2));
+            box-shadow: 0 0 8px rgba(0,255,136,0.5);
+        }
+        .lvl-name {
+            font-family: 'Orbitron', monospace;
+            font-size: .58rem;
+            font-weight: 700;
+            color: #fff;
+            letter-spacing: 1px;
+        }
+        .lvl-name span { color: var(--neon); }
+
+        /* Dados da via */
+        .data-card {
+            background: rgba(0,255,136,0.03);
+            border: 1px solid rgba(0,255,136,0.12);
+            border-radius: 6px;
+            padding: 12px 14px;
+            position: relative;
+            overflow: hidden;
+        }
+        .data-card::before {
+            content: '';
+            position: absolute;
+            left: 0; top: 0; bottom: 0;
+            width: 3px;
+            background: var(--neon2);
+        }
+        .data-lbl {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: .48rem;
+            color: rgba(200,238,221,.38);
+            letter-spacing: 2px;
+            margin-bottom: 8px;
+        }
+        .data-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 3px 0;
+        }
+        .data-key { font-size: .7rem; color: rgba(200,238,221,.6); }
+        .data-val {
+            font-family: 'Orbitron', monospace;
+            font-size: .9rem;
+            font-weight: 700;
+            color: var(--neon);
+        }
+
+        /* Fórmula */
+        .formula-box {
+            background: rgba(255,107,53,.04);
+            border: 1px solid rgba(255,107,53,.22);
+            border-radius: 6px;
+            padding: 8px 12px;
+            text-align: center;
+        }
+        .formula-lbl { font-size:.48rem; color:rgba(255,107,53,.5); letter-spacing:2px; font-family:'Share Tech Mono',monospace; margin-bottom:3px; }
+        .formula-eq { font-family:'Share Tech Mono',monospace; font-size:.85rem; color:var(--accent); }
+
+        /* Input */
+        .inp-lbl { font-size:.5rem; letter-spacing:2px; color:rgba(200,238,221,.38); font-family:'Share Tech Mono',monospace; }
+        input[type=number] {
+            width:100%;
+            background:rgba(0,255,136,.04);
+            border:1.5px solid rgba(0,255,136,.35);
+            color:var(--neon);
+            padding:12px;
+            font-family:'Orbitron',monospace;
+            font-size:1.1rem;
+            text-align:center;
+            border-radius:6px;
+            outline:none;
+            transition:.2s;
+        }
+        input[type=number]:focus { border-color:var(--neon); box-shadow:0 0 14px rgba(0,255,136,.18); }
+        input[type=number]::placeholder { color:rgba(0,255,136,.18); font-size:.7rem; }
+
+        button#btn {
+            width:100%;
+            background:linear-gradient(135deg,rgba(0,255,136,.14),rgba(0,170,255,.07));
+            border:1.5px solid var(--neon);
+            color:var(--neon);
+            padding:12px;
+            font-family:'Orbitron',monospace;
+            font-size:.6rem;
+            font-weight:700;
+            letter-spacing:2px;
+            cursor:pointer;
+            border-radius:6px;
+            transition:.2s;
+        }
+        button#btn:hover { box-shadow:0 0 18px rgba(0,255,136,.3); transform:translateY(-1px); }
+
+        #feedback {
+            font-family:'Share Tech Mono',monospace;
+            font-size:.68rem;
+            letter-spacing:1px;
+            min-height:26px;
+            border-radius:5px;
+            padding:5px 10px;
+            text-align:center;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            transition:.3s;
+        }
+        .fb-ok  { background:rgba(0,255,136,.07); border:1px solid rgba(0,255,136,.2); color:var(--neon); }
+        .fb-err { background:rgba(255,80,80,.07);  border:1px solid rgba(255,80,80,.2);  color:#ff7070; }
+
+        /* Footer do painel */
+        .ctrl-footer {
+            padding: 10px 18px 14px;
+            border-top: 1px solid rgba(0,255,136,.08);
+            flex-shrink: 0;
+        }
+        .xp-lbl { font-size:.46rem; letter-spacing:3px; color:rgba(200,238,221,.28); font-family:'Share Tech Mono',monospace; margin-bottom:5px; }
+        .xp-track { height:4px; background:rgba(0,255,136,.05); border:1px solid rgba(0,255,136,.12); border-radius:3px; overflow:hidden; }
+        #xp-bar { height:100%; width:0%; background:linear-gradient(90deg,var(--neon),var(--neon2)); border-radius:3px; transition:width 1.2s cubic-bezier(.4,0,.2,1); }
+        .sys-tag { font-family:'Share Tech Mono',monospace; font-size:.44rem; color:rgba(0,255,136,.2); margin-top:6px; letter-spacing:1px; }
+
+        /* Animações */
+        @keyframes fadeIn { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:none} }
+        @keyframes fadeInWin {
+            from { opacity:0; transform:scale(0.88) translateY(4px); }
+            to   { opacity:1; transform:scale(1) translateY(0); }
+        }
+        @keyframes pulse-neon {
+            0%,100% { box-shadow: 0 0 8px rgba(0,255,136,.3); }
+            50%      { box-shadow: 0 0 22px rgba(0,255,136,.7); }
+        }
+        @keyframes win-flash {
+            0%,100% { border-color: var(--gold); }
+            50%      { border-color: rgba(241,196,15,.3); }
+        }
+    </style>
+</head>
+<body>
+
+<!-- VIEWPORT 3D -->
+<div class="city-viewport">
+    <canvas id="cityCanvas"></canvas>
+
+    <div class="hud-corner">
+        SETOR URBANO // <span id="hud-sector">04</span><br>
+        COORDENADA: <span>5.79°S / 35.20°W</span><br>
+        STATUS: <span id="hud-status">AGUARDANDO</span>
+    </div>
+
+    <div class="hud-top">SIMULADOR DE FLUXO URBANO</div>
+
+    <!-- Semáforo HUD -->
+    <div class="traffic-hud">
+        <div class="tl-dot" id="tl-red"></div>
+        <div class="tl-dot" id="tl-yellow"></div>
+        <div class="tl-dot green-on" id="tl-green"></div>
+    </div>
+
+    <!-- Velocímetro -->
+    <div class="speedometer">
+        <div class="speed-ring">
+            <div class="speed-num" id="speed-display">—</div>
+            <div class="speed-unit">M/S</div>
+        </div>
+        <div class="speed-lbl">VELOCIDADE ATUAL</div>
+    </div>
+</div>
+
+<!-- PAINEL DIREITO -->
+<div class="controls">
+
+    <div class="dialogue-area">
+        <!-- Dr. Vektor SVG (do jogovetor.html) -->
+        <svg class="char-svg" viewBox="0 0 80 120" width="72" height="108" xmlns="http://www.w3.org/2000/svg">
+            <ellipse cx="40" cy="116" rx="26" ry="4" fill="rgba(0,255,136,0.15)"/>
+            <rect x="24" y="82" width="11" height="32" rx="5" fill="#0b2820"/>
+            <rect x="45" y="82" width="11" height="32" rx="5" fill="#0b2820"/>
+            <rect x="20" y="108" width="16" height="8" rx="4" fill="#051a10"/>
+            <rect x="44" y="108" width="16" height="8" rx="4" fill="#051a10"/>
+            <rect x="17" y="46" width="46" height="40" rx="9" fill="#0a3424"/>
+            <rect x="35" y="50" width="2" height="30" rx="1" fill="rgba(0,255,136,0.25)"/>
+            <rect x="7" y="48" width="12" height="28" rx="6" fill="#0a3424"/>
+            <rect x="61" y="48" width="12" height="28" rx="6" fill="#0a3424"/>
+            <ellipse cx="13" cy="77" rx="7" ry="6" fill="#051a10"/>
+            <ellipse cx="67" cy="77" rx="7" ry="6" fill="#051a10"/>
+            <rect x="33" y="35" width="14" height="13" rx="6" fill="#c89a72"/>
+            <ellipse cx="40" cy="28" rx="20" ry="22" fill="#c89a72"/>
+            <rect x="21" y="20" width="38" height="15" rx="7" fill="rgba(0,20,14,0.88)" stroke="rgba(0,255,136,0.6)" stroke-width="1.4"/>
+            <rect x="24" y="23" width="13" height="9" rx="4" fill="rgba(0,200,150,0.28)"/>
+            <rect x="43" y="23" width="13" height="9" rx="4" fill="rgba(0,150,255,0.28)"/>
+            <rect x="38" y="24" width="4" height="7" rx="2" fill="rgba(0,255,136,0.35)"/>
+            <path d="M21 26 Q19 8 40 6 Q61 8 59 26" fill="#180800"/>
+            <rect x="17" y="46" width="46" height="3" rx="1" fill="rgba(0,255,136,0.12)"/>
+            <rect x="33" y="46" width="14" height="7" rx="3" fill="rgba(0,255,136,0.15)" stroke="rgba(0,255,136,0.4)" stroke-width="0.8"/>
+        </svg>
+
+        <div class="bubble">
+            <div class="bubble-name">DR. VEKTOR — V-PHYS</div>
+            <div id="dialogue-text">Inicializando módulo...</div>
+        </div>
+    </div>
+
+    <div class="ctrl-body">
+
+        <!-- Nível -->
+        <div class="lvl-strip">
+            <div class="lvl-badges">
+                <div class="lvl-badge" id="b1"></div>
+                <div class="lvl-badge" id="b2"></div>
+                <div class="lvl-badge" id="b3"></div>
+            </div>
+            <div class="lvl-name" id="lvl-txt">FASE: <span>ONDA VERDE</span></div>
+        </div>
+
+        <!-- Dados -->
+        <div class="data-card">
+            <div class="data-lbl">DADOS DA VIA</div>
+            <div class="data-row">
+                <span class="data-key">Distância (ΔS)</span>
+                <span class="data-val" id="dist-val">800 m</span>
+            </div>
+            <div class="data-row">
+                <span class="data-key">Tempo Limite (Δt)</span>
+                <span class="data-val" id="time-val">40 s</span>
+            </div>
+        </div>
+
+        <!-- Fórmula -->
+        <div class="formula-box">
+            <div class="formula-lbl">MOVIMENTO UNIFORME</div>
+            <div class="formula-eq">v = ΔS / Δt</div>
+        </div>
+
+        <!-- Input -->
+        <div style="display:flex;flex-direction:column;gap:6px;">
+            <div class="inp-lbl">VELOCIDADE MÉDIA (m/s)</div>
+            <input type="number" id="ans-input" step="0.1" placeholder="0.0">
+            <button id="btn" onclick="verificar()">▶ SINCRONIZAR VELOCIDADE</button>
+        </div>
+
+        <div id="feedback"></div>
+
+    </div>
+
+    <div class="ctrl-footer">
+        <div class="xp-lbl">PROGRESSO XP</div>
+        <div class="xp-track"><div id="xp-bar"></div></div>
+        <div class="sys-tag" id="sys-tag">SISTEMA V-PHYS v2.0 · MÓDULO CINEMÁTICA</div>
+    </div>
+</div>
+
+<script>
+/* ══ GERADOR DE DESAFIOS ALEATÓRIOS ══ */
+
+// Configuração dos 3 níveis progressivos
+const NIVEIS = [
+    {
+        // NÍVEL 1 — INICIANTE: velocidades inteiras simples (5–20 m/s), tempos redondos
+        nome: 'INICIANTE',
+        cor: '#00ff88',
+        setores: ['01','02','03'],
+        fases: ['ONDA VERDE','SINAL FÁCIL','ROTA LIVRE'],
+        // Gera v inteira entre 5 e 20, t entre 10 e 60 (múltiplos de 5), s = v*t
+        gerarValores() {
+            const v = (Math.floor(Math.random() * 8) + 2) * 5 / 5; // 5,10,15,20
+            const vList = [5, 10, 15, 20];
+            const vEscolhida = vList[Math.floor(Math.random() * vList.length)];
+            const tList = [10, 20, 25, 30, 40, 50, 60];
+            const t = tList[Math.floor(Math.random() * tList.length)];
+            const s = vEscolhida * t;
+            return { s, t, v: vEscolhida };
+        },
+        msgs: [
+            (s,t) => `Avenida Central, estagiário! O semáforo fecha em <strong>${t}s</strong>. Com <em>${s}m</em> pela frente, calcule a <strong>velocidade média</strong> para cruzar no verde!`,
+            (s,t) => `Zona Escolar à frente. Distância até a escola: <em>${s}m</em>. Tempo disponível: <strong>${t}s</strong>. Qual a velocidade média necessária?`,
+            (s,t) => `Rota de patrulha simples. Cobrimos <em>${s}m</em> em <strong>${t}s</strong>. Informe a velocidade média ao sistema!`,
+        ],
+        oks: [
+            (v) => `<span class="gold">✓ PERFEITO!</span> v = ${v} m/s. Cruzamos com folga. Avançando ao próximo setor!`,
+            (v) => `<span class="gold">✓ CORRETO!</span> Velocidade sincronizada: ${v} m/s. Continue assim, estagiário!`,
+            (v) => `<span class="gold">✓ APROVADO!</span> ${v} m/s registrado no sistema. Bom trabalho!`,
+        ],
+    },
+    {
+        // NÍVEL 2 — INTERMEDIÁRIO: velocidades podem ter .5, tempos variados
+        nome: 'INTERMEDIÁRIO',
+        cor: '#00aaff',
+        setores: ['04','05','06'],
+        fases: ['RADAR MÉDIO','TRÂNSITO URBANO','CORREDOR EXPRESSO'],
+        gerarValores() {
+            // v com 1 casa decimal: múltiplos de 2.5 entre 12.5 e 35
+            const vOpcoes = [12.5, 15, 17.5, 20, 22.5, 25, 27.5, 30, 32.5, 35];
+            const v = vOpcoes[Math.floor(Math.random() * vOpcoes.length)];
+            // t entre 20 e 80, múltiplos de 4 (para resultar em s inteiro)
+            const tBase = Math.floor(Math.random() * 15 + 5) * 4;
+            const t = tBase;
+            const s = Math.round(v * t);
+            return { s, t, v };
+        },
+        msgs: [
+            (s,t) => `Trecho monitorado pelo RADAR. <em>${s}m</em> de extensão, janela: <strong>${t}s</strong>. Calcule a <strong>v média</strong> para não ser autuado!`,
+            (s,t) => `Corredor expresso ativo. <em>${s}m</em> até o checkpoint. Tempo: <strong>${t}s</strong>. Sincronize a velocidade média agora!`,
+            (s,t) => `Sistema de fluxo inteligente. O semáforo coordenado requer exatamente <strong>${t}s</strong> para cobrir <em>${s}m</em>. Calcule!`,
+        ],
+        oks: [
+            (v) => `<span class="gold">✓ SINCRONIZADO!</span> v = ${v} m/s. Sistema de fluxo alinhado. Próximo setor!`,
+            (v) => `<span class="gold">✓ CHECKPOINT LIBERADO!</span> Velocidade ${v} m/s confirmada. Avançando!`,
+            (v) => `<span class="gold">✓ RADAR OK!</span> ${v} m/s dentro dos parâmetros. Sem multa!`,
+        ],
+    },
+    {
+        // NÍVEL 3 — AVANÇADO: valores maiores, velocidades decimais, cenários críticos
+        nome: 'AVANÇADO',
+        cor: '#ff6b35',
+        setores: ['07','08','09'],
+        fases: ['LOGÍSTICA CRÍTICA','EMERGÊNCIA TOTAL','PROTOCOLO DELTA'],
+        gerarValores() {
+            // v com até 1 decimal entre 25 e 60
+            const vBase = Math.floor(Math.random() * 8 + 5) * 5;
+            const decimal = [0, 5][Math.floor(Math.random() * 2)];
+            const v = vBase + decimal / 10;
+            // t entre 30 e 120 segundos
+            const t = (Math.floor(Math.random() * 10) + 3) * 10;
+            const s = Math.round(v * t);
+            return { s, t, v };
+        },
+        msgs: [
+            (s,t) => `<strong>EMERGÊNCIA!</strong> Paciente crítico a bordo. Distância: <em>${s}m</em>. Janela máxima: <strong>${t}s</strong>. Calcule a velocidade — vidas dependem disso!`,
+            (s,t) => `<strong>PROTOCOLO DELTA ATIVO!</strong> Carga sigilosa. Corredor de <em>${s}m</em>, tempo limite: <strong>${t}s</strong>. Velocidade média necessária?`,
+            (s,t) => `<strong>MISSÃO CRÍTICA!</strong> Falha no sistema central. Você deve percorrer <em>${s}m</em> em exatos <strong>${t}s</strong>. Calcule agora!`,
+        ],
+        oks: [
+            (v) => `<span class="gold">★ MISSÃO CUMPRIDA!</span> v = ${v} m/s. Objetivo alcançado. Você é um mestre do MU!`,
+            (v) => `<span class="gold">★ PROTOCOLO CONCLUÍDO!</span> ${v} m/s executado com precisão. Excelência confirmada!`,
+            (v) => `<span class="gold">★ EMERGÊNCIA RESOLVIDA!</span> Velocidade ${v} m/s. Você salvou a missão!`,
+        ],
+    },
+];
+
+// Gera uma missão aleatória para um dado nível (0,1,2)
+function gerarMissao(nivelIdx) {
+    const nivel = NIVEIS[nivelIdx];
+    const { s, t, v } = nivel.gerarValores();
+    const msgFn = nivel.msgs[Math.floor(Math.random() * nivel.msgs.length)];
+    const okFn  = nivel.oks[Math.floor(Math.random() * nivel.oks.length)];
+    const sector = nivel.setores[Math.floor(Math.random() * nivel.setores.length)];
+    const fase   = nivel.fases[Math.floor(Math.random() * nivel.fases.length)];
+    return { fase, sector, s, t, v, msg: msgFn(s, t), ok: okFn(v), nivelIdx };
+}
+
+// Gera as 3 missões (uma por nível) de forma aleatória
+function gerarMissoes() {
+    return [gerarMissao(0), gerarMissao(1), gerarMissao(2)];
+}
+
+let missoes = gerarMissoes();
+
+let current = 0;
+let vehicleX = 0;      // 0..1 progresso do veículo
+let animId;
+let isMoving = false;
+let targetX = 0;
+let startX = 0;
+let animStart = 0;
+const ANIM_DUR = 2600;
+
+/* ══ CANVAS 3D ══ */
+const canvas = document.getElementById('cityCanvas');
+const ctx = canvas.getContext('2d');
+let W, H;
+
+function resize() {
+    W = canvas.width  = canvas.offsetWidth;
+    H = canvas.height = canvas.offsetHeight;
+}
+resize();
+window.addEventListener('resize', () => { resize(); });
+
+/* Paleta 3D */
+const C = {
+    road:      '#0a1520',
+    roadLine:  'rgba(0,255,136,0.18)',
+    roadEdge:  'rgba(0,255,136,0.35)',
+    building1: '#071220',
+    building2: '#060e1a',
+    buildingL: '#0a1828',
+    win1:      'rgba(0,255,136,0.12)',
+    win2:      'rgba(0,170,255,0.1)',
+    neon:      '#00ff88',
+    neon2:     '#00aaff',
+    sky:       '#020810',
+};
+
+/* Converter coord isométrica 3D para tela */
+function iso(gx, gy, gz) {
+    // gx = profundidade (Z do mundo), gy = largura (X), gz = altura
+    const tileW = W * 0.06;
+    const tileH = tileW * 0.5;
+    const cx = W * 0.5;
+    const cy = H * 0.52;
+    const sx = cx + (gy - gx) * tileW;
+    const sy = cy + (gy + gx) * tileH * 0.5 - gz * tileH;
+    return { x: sx, y: sy };
+}
+
+/* Prédio isométrico */
+function drawBuilding(gx, gy, w, d, h, colorTop, colorLeft, colorRight, windows) {
+    const t  = iso(gx,   gy,   h);
+    const tR = iso(gx,   gy+w, h);
+    const tL = iso(gx+d, gy,   h);
+    const tF = iso(gx+d, gy+w, h);
+    const bR = iso(gx,   gy+w, 0);
+    const bL = iso(gx+d, gy,   0);
+    const bF = iso(gx+d, gy+w, 0);
+
+    // Topo
+    ctx.beginPath();
+    ctx.moveTo(t.x,t.y); ctx.lineTo(tR.x,tR.y);
+    ctx.lineTo(tF.x,tF.y); ctx.lineTo(tL.x,tL.y);
+    ctx.closePath();
+    ctx.fillStyle = colorTop;
+    ctx.fill();
+
+    // Frente direita
+    ctx.beginPath();
+    ctx.moveTo(tR.x,tR.y); ctx.lineTo(bR.x,bR.y);
+    ctx.lineTo(bF.x,bF.y); ctx.lineTo(tF.x,tF.y);
+    ctx.closePath();
+    ctx.fillStyle = colorRight;
+    ctx.fill();
+
+    // Frente esquerda
+    ctx.beginPath();
+    ctx.moveTo(tL.x,tL.y); ctx.lineTo(bL.x,bL.y);
+    ctx.lineTo(bF.x,bF.y); ctx.lineTo(tF.x,tF.y);
+    ctx.closePath();
+    ctx.fillStyle = colorLeft;
+    ctx.fill();
+
+    // Janelas (lado direito)
+    if (windows) {
+        const cols = Math.max(1, Math.floor(w * 1.5));
+        const rows = Math.max(1, Math.floor(h * 1.2));
+        for (let c = 0; c < cols; c++) {
+            for (let r = 0; r < rows; r++) {
+                const alpha = Math.random() > 0.35 ? 1 : 0.1;
+                const wy = gy + w * ((c + 0.5) / cols);
+                const wz = h * ((r + 0.5) / rows) * 0.75 + h * 0.12;
+                const wTop    = iso(gx, wy - 0.05, wz + 0.12);
+                const wBottom = iso(gx, wy + 0.05, wz - 0.12);
+                const wR      = iso(gx, wy + 0.07, wz);
+                const wL      = iso(gx, wy - 0.07, wz);
+                ctx.beginPath();
+                ctx.moveTo(wTop.x, wTop.y);
+                ctx.lineTo(wR.x, wR.y);
+                ctx.lineTo(wBottom.x, wBottom.y);
+                ctx.lineTo(wL.x, wL.y);
+                ctx.closePath();
+                const isBlue = (c + r) % 3 === 0;
+                ctx.fillStyle = isBlue
+                    ? `rgba(0,170,255,${alpha * 0.5})`
+                    : `rgba(0,255,136,${alpha * 0.4})`;
+                ctx.fill();
+            }
+        }
+    }
+}
+
+/* Pintar chão */
+function drawGround() {
+    // Chão base com gradiente
+    const grad = ctx.createLinearGradient(0, H * 0.3, 0, H);
+    grad.addColorStop(0, '#050c18');
+    grad.addColorStop(1, '#030810');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, W, H);
+
+    // Malha isométrica de piso
+    const COLS = 18, ROWS = 12;
+    ctx.strokeStyle = 'rgba(0,255,136,0.045)';
+    ctx.lineWidth = 0.6;
+    for (let r = 0; r <= ROWS; r++) {
+        const a = iso(r, 0, 0);
+        const b = iso(r, COLS, 0);
+        ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+    }
+    for (let c = 0; c <= COLS; c++) {
+        const a = iso(0, c, 0);
+        const b = iso(ROWS, c, 0);
+        ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+    }
+}
+
+/* ── CENA ESTÁTICA ──  */
+let builtScene = null;
+
+function buildScene() {
+    const off = document.createElement('canvas');
+    off.width = W; off.height = H;
+    const oc = off.getContext('2d');
+    // Salvar e trocar ctx temporariamente
+    const origCtx = ctx;
+    // Desenhar direto (usa ctx global)
+    drawGround();
+
+    // Bloco de prédios lado esquerdo (gx alto = mais atrás)
+    const leftBuildings = [
+        [1,  1,  1.8, 1.2, 3.2, '#0d1f12', '#082010', '#0a2a14', true],
+        [1,  3,  1.5, 1.0, 5.5, '#0c1c1a', '#07181a', '#091f20', true],
+        [1,  5,  2.0, 1.4, 4.0, '#0d1a22', '#081620', '#0a1c28', true],
+        [1,  7.5,1.6, 1.1, 6.5, '#0c1e14', '#071a12', '#09221a', true],
+        [1, 10,  1.8, 1.3, 3.8, '#0d1c20', '#08181e', '#0a1e26', true],
+        [1, 12,  2.2, 1.5, 5.0, '#0c2018', '#071c16', '#09241c', true],
+        [1, 14,  1.4, 1.0, 4.5, '#0d1e18', '#081a16', '#0a2020', true],
+        [1, 16,  1.7, 1.2, 3.5, '#0c1c1c', '#07181a', '#091e22', true],
+    ];
+
+    // Bloco de prédios lado direito
+    const rightBuildings = [
+        [5,  0,  2.0, 1.3, 4.5, '#0d1f14', '#082010', '#0a2a16', true],
+        [5,  2.5,1.5, 1.1, 6.0, '#0c1c1e', '#07181c', '#09202a', true],
+        [5,  4.5,1.8, 1.2, 3.8, '#0d1a20', '#081620', '#0a1c28', true],
+        [5,  7,  2.2, 1.5, 5.5, '#0c2016', '#071c14', '#09241c', true],
+        [5,  9.5,1.6, 1.0, 4.2, '#0d1e1a', '#081a18', '#0a2022', true],
+        [5, 12,  2.0, 1.3, 3.5, '#0c1c20', '#07181e', '#091e28', true],
+        [5, 14,  1.7, 1.2, 5.8, '#0d1c18', '#081818', '#0a2020', true],
+        [5, 16,  2.1, 1.4, 4.0, '#0c2018', '#071c16', '#09241c', true],
+    ];
+
+    [...leftBuildings, ...rightBuildings].forEach(b => drawBuilding(...b));
+
+    // Rua (uma faixa isométrica entre row 3 e 5)
+    const rA = iso(3, 0, 0),  rB = iso(3, 18, 0);
+    const rC = iso(5, 18, 0), rD = iso(5, 0,  0);
+    ctx.beginPath();
+    ctx.moveTo(rA.x,rA.y); ctx.lineTo(rB.x,rB.y);
+    ctx.lineTo(rC.x,rC.y); ctx.lineTo(rD.x,rD.y);
+    ctx.closePath();
+    ctx.fillStyle = '#060e18';
+    ctx.fill();
+
+    // Linha central tracejada
+    ctx.setLineDash([12, 18]);
+    ctx.strokeStyle = 'rgba(0,255,136,0.2)';
+    ctx.lineWidth = 1.5;
+    const lA = iso(4, 0, 0.01), lB = iso(4, 18, 0.01);
+    ctx.beginPath(); ctx.moveTo(lA.x,lA.y); ctx.lineTo(lB.x,lB.y); ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Bordas da rua (neon)
+    ctx.strokeStyle = 'rgba(0,255,136,0.35)';
+    ctx.lineWidth = 1.2;
+    const e1a = iso(3, 0, 0.01), e1b = iso(3, 18, 0.01);
+    const e2a = iso(5, 0, 0.01), e2b = iso(5, 18, 0.01);
+    ctx.beginPath(); ctx.moveTo(e1a.x,e1a.y); ctx.lineTo(e1b.x,e1b.y); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(e2a.x,e2a.y); ctx.lineTo(e2b.x,e2b.y); ctx.stroke();
+
+    // Postes de luz
+    for (let pole = 1; pole <= 16; pole += 4) {
+        const pBase = iso(3, pole, 0);
+        const pTop  = iso(3, pole, 2.5);
+        ctx.strokeStyle = 'rgba(0,255,136,0.3)';
+        ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(pBase.x, pBase.y); ctx.lineTo(pTop.x, pTop.y); ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(pTop.x, pTop.y, 4, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(0,255,136,0.7)';
+        ctx.fill();
+        ctx.shadowColor = '#00ff88';
+        ctx.shadowBlur = 10;
+        ctx.fill();
+        ctx.shadowBlur = 0;
+    }
+
+    // Semáforo 3D no fim da rua
+    const sfBase = iso(3, 17, 0);
+    const sfTop  = iso(3, 17, 3);
+    ctx.strokeStyle = 'rgba(0,255,136,0.4)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(sfBase.x, sfBase.y); ctx.lineTo(sfTop.x, sfTop.y); ctx.stroke();
+    // Caixa do semáforo
+    const sfBox = iso(3, 17, 3);
+    ctx.fillStyle = '#050e14';
+    ctx.strokeStyle = 'rgba(0,255,136,0.25)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.roundRect(sfBox.x - 8, sfBox.y - 18, 16, 28, 3);
+    ctx.fill(); ctx.stroke();
+}
+
+/* Desenhar veículo isométrico */
+function drawVehicle(progress) {
+    // Interpola ao longo da rua (gx=4, gy varia de 0 a 17)
+    const gy = progress * 17;
+    const gx = 4;
+    const gz = 0.1;
+
+    const pos = iso(gx, gy, gz);
+
+    // Sombra
+    ctx.save();
+    ctx.globalAlpha = 0.3;
+    ctx.beginPath();
+    ctx.ellipse(pos.x, pos.y + 6, 22, 8, 0, 0, Math.PI * 2);
+    ctx.fillStyle = '#000';
+    ctx.fill();
+    ctx.restore();
+
+    // ── AMBULÂNCIA DETALHADA ──
+    const vW = 0.72, vD = 1.6, vH = 0.95;
+    const vgx = gx - vD / 2;
+    const vgy = gy - vW / 2;
+
+    // Pontos de geometria principal
+    const vt  = iso(vgx,        vgy,        vH);
+    const vtR = iso(vgx,        vgy + vW,   vH);
+    const vtL = iso(vgx + vD,   vgy,        vH);
+    const vtF = iso(vgx + vD,   vgy + vW,   vH);
+    const vbR = iso(vgx,        vgy + vW,   0);
+    const vbL = iso(vgx + vD,   vgy,        0);
+    const vbF = iso(vgx + vD,   vgy + vW,   0);
+    const vb0 = iso(vgx,        vgy,        0);
+
+    // — RODAS (embaixo, antes da carroceria) —
+    const wheelR = 5;
+    const wheels = [
+        iso(vgx + 0.25, vgy,        0.12),
+        iso(vgx + 0.25, vgy + vW,   0.12),
+        iso(vgx + vD - 0.3, vgy,    0.12),
+        iso(vgx + vD - 0.3, vgy + vW, 0.12),
+    ];
+    ctx.save();
+    wheels.forEach(w => {
+        // Pneu
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = '#111820';
+        ctx.strokeStyle = '#223344';
+        ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.ellipse(w.x, w.y, wheelR + 1, wheelR * 0.55, 0, 0, Math.PI*2);
+        ctx.fill(); ctx.stroke();
+        // Aro
+        ctx.fillStyle = '#334455';
+        ctx.beginPath(); ctx.ellipse(w.x, w.y, wheelR - 2, (wheelR - 2) * 0.5, 0, 0, Math.PI*2);
+        ctx.fill();
+        // Brilho do aro
+        ctx.fillStyle = 'rgba(150,200,255,0.3)';
+        ctx.beginPath(); ctx.ellipse(w.x - 1, w.y - 1, 2, 1, 0, 0, Math.PI*2);
+        ctx.fill();
+    });
+    ctx.restore();
+
+    // — Para-choque traseiro —
+    const pcT1 = iso(vgx,       vgy + vW * 0.1,  0.18);
+    const pcT2 = iso(vgx,       vgy + vW * 0.9,  0.18);
+    const pcB1 = iso(vgx,       vgy + vW * 0.1,  0.05);
+    const pcB2 = iso(vgx,       vgy + vW * 0.9,  0.05);
+    ctx.save();
+    ctx.fillStyle = '#445566';
+    ctx.strokeStyle = '#556677';
+    ctx.lineWidth = 0.8;
+    ctx.beginPath();
+    ctx.moveTo(pcT1.x,pcT1.y); ctx.lineTo(pcT2.x,pcT2.y);
+    ctx.lineTo(pcB2.x,pcB2.y); ctx.lineTo(pcB1.x,pcB1.y);
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.restore();
+
+    // — TOPO (branco ambulância) —
+    ctx.beginPath();
+    ctx.moveTo(vt.x,vt.y); ctx.lineTo(vtR.x,vtR.y);
+    ctx.lineTo(vtF.x,vtF.y); ctx.lineTo(vtL.x,vtL.y);
+    ctx.closePath();
+    const topGrad = ctx.createLinearGradient(vt.x, vt.y, vtF.x, vtF.y);
+    topGrad.addColorStop(0, '#ddeeff');
+    topGrad.addColorStop(1, '#c0d4ea');
+    ctx.fillStyle = topGrad;
+    ctx.fill();
+    // Borda do topo
+    ctx.strokeStyle = 'rgba(100,160,220,0.5)';
+    ctx.lineWidth = 0.8;
+    ctx.stroke();
+
+    // Cruz vermelha no topo (centrada)
+    const crossCX = (vt.x + vtR.x + vtF.x + vtL.x) / 4;
+    const crossCY = (vt.y + vtR.y + vtF.y + vtL.y) / 4 - 2;
+    ctx.save();
+    ctx.fillStyle = '#ee2244';
+    ctx.shadowColor = '#ff3344';
+    ctx.shadowBlur = 6;
+    // Barra horizontal da cruz
+    ctx.fillRect(crossCX - 6, crossCY - 2, 12, 4);
+    // Barra vertical da cruz
+    ctx.fillRect(crossCX - 2, crossCY - 6, 4, 12);
+    ctx.restore();
+
+    // — LATERAL DIREITA (face visível) —
+    ctx.beginPath();
+    ctx.moveTo(vtR.x,vtR.y); ctx.lineTo(vbR.x,vbR.y);
+    ctx.lineTo(vbF.x,vbF.y); ctx.lineTo(vtF.x,vtF.y);
+    ctx.closePath();
+    const rightGrad = ctx.createLinearGradient(vtR.x, vtR.y, vbF.x, vbF.y);
+    rightGrad.addColorStop(0, '#d0e4f8');
+    rightGrad.addColorStop(1, '#b0c8e0');
+    ctx.fillStyle = rightGrad;
+    ctx.fill();
+
+    // Janela lateral direita
+    const wR_tl = iso(vgx + 0.15, vgy + vW, vH - 0.18);
+    const wR_tr = iso(vgx + 0.55, vgy + vW, vH - 0.18);
+    const wR_br = iso(vgx + 0.55, vgy + vW, vH - 0.52);
+    const wR_bl = iso(vgx + 0.15, vgy + vW, vH - 0.52);
+    ctx.save();
+    ctx.fillStyle = 'rgba(80,180,255,0.35)';
+    ctx.strokeStyle = 'rgba(100,200,255,0.5)';
+    ctx.lineWidth = 0.8;
+    ctx.beginPath();
+    ctx.moveTo(wR_tl.x,wR_tl.y); ctx.lineTo(wR_tr.x,wR_tr.y);
+    ctx.lineTo(wR_br.x,wR_br.y); ctx.lineTo(wR_bl.x,wR_bl.y);
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+    // Reflexo na janela
+    ctx.fillStyle = 'rgba(255,255,255,0.2)';
+    ctx.beginPath();
+    ctx.moveTo(wR_tl.x,wR_tl.y); ctx.lineTo(wR_tr.x,wR_tr.y);
+    ctx.lineTo((wR_tr.x+wR_br.x)/2,(wR_tr.y+wR_br.y)/2);
+    ctx.lineTo((wR_tl.x+wR_bl.x)/2,(wR_tl.y+wR_bl.y)/2);
+    ctx.closePath(); ctx.fill();
+    ctx.restore();
+
+    // Faixa refletiva laranja-neon (lateral direita)
+    const fr1a = iso(vgx + 0.02, vgy + vW, vH * 0.38);
+    const fr1b = iso(vgx + vD - 0.05, vgy + vW, vH * 0.38);
+    const fr2a = iso(vgx + 0.02, vgy + vW, vH * 0.30);
+    const fr2b = iso(vgx + vD - 0.05, vgy + vW, vH * 0.30);
+    ctx.save();
+    ctx.strokeStyle = '#ff8800';
+    ctx.lineWidth = 2.5;
+    ctx.shadowColor = '#ff6600';
+    ctx.shadowBlur = 6;
+    ctx.beginPath(); ctx.moveTo(fr1a.x,fr1a.y); ctx.lineTo(fr1b.x,fr1b.y); ctx.stroke();
+    ctx.strokeStyle = '#00ff88';
+    ctx.shadowColor = '#00ff88';
+    ctx.beginPath(); ctx.moveTo(fr2a.x,fr2a.y); ctx.lineTo(fr2b.x,fr2b.y); ctx.stroke();
+    ctx.restore();
+
+    // Cruz vermelha na lateral direita
+    const lcX = (vtR.x + vbR.x + vbF.x + vtF.x) / 4 + 2;
+    const lcY = (vtR.y + vbR.y + vbF.y + vtF.y) / 4 - 4;
+    ctx.save();
+    ctx.fillStyle = '#ee2244';
+    ctx.shadowColor = '#ff3344';
+    ctx.shadowBlur = 4;
+    ctx.fillRect(lcX - 5, lcY - 1.5, 10, 3);
+    ctx.fillRect(lcX - 1.5, lcY - 5, 3, 10);
+    ctx.restore();
+
+    // — LATERAL ESQUERDA (face em sombra) —
+    ctx.beginPath();
+    ctx.moveTo(vtL.x,vtL.y); ctx.lineTo(vbL.x,vbL.y);
+    ctx.lineTo(vbF.x,vbF.y); ctx.lineTo(vtF.x,vtF.y);
+    ctx.closePath();
+    const leftGrad = ctx.createLinearGradient(vtL.x, vtL.y, vbF.x, vbF.y);
+    leftGrad.addColorStop(0, '#8aaac4');
+    leftGrad.addColorStop(1, '#6a8aa4');
+    ctx.fillStyle = leftGrad;
+    ctx.fill();
+
+    // — BARRA DE SIRENE no topo —
+    const sirenPulse = (Math.sin(Date.now() * 0.009) + 1) * 0.5;
+    const sBar1 = iso(vgx + 0.1, vgy + vW * 0.3, vH + 0.08);
+    const sBar2 = iso(vgx + 0.1, vgy + vW * 0.7, vH + 0.08);
+
+    ctx.save();
+    // Suporte da barra
+    const sSupA = iso(vgx + 0.1, vgy + vW * 0.2, vH);
+    const sSupB = iso(vgx + 0.1, vgy + vW * 0.8, vH);
+    const sSupC = iso(vgx + 0.1, vgy + vW * 0.8, vH + 0.1);
+    const sSupD = iso(vgx + 0.1, vgy + vW * 0.2, vH + 0.1);
+    ctx.fillStyle = '#223344';
+    ctx.strokeStyle = '#334455';
+    ctx.lineWidth = 0.5;
+    ctx.beginPath();
+    ctx.moveTo(sSupA.x,sSupA.y); ctx.lineTo(sSupB.x,sSupB.y);
+    ctx.lineTo(sSupC.x,sSupC.y); ctx.lineTo(sSupD.x,sSupD.y);
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+
+    // Luz vermelha
+    ctx.shadowColor = '#ff2233';
+    ctx.shadowBlur = 18 * sirenPulse + 4;
+    ctx.fillStyle = `rgba(255,${30 + Math.floor(sirenPulse * 60)},50,${0.7 + sirenPulse * 0.3})`;
+    ctx.beginPath(); ctx.ellipse(sBar1.x, sBar1.y, 5, 3, 0, 0, Math.PI*2); ctx.fill();
+
+    // Luz azul (alternada)
+    ctx.shadowColor = '#0088ff';
+    ctx.shadowBlur = 18 * (1 - sirenPulse) + 4;
+    ctx.fillStyle = `rgba(0,${140 + Math.floor((1-sirenPulse)*115)},255,${0.7 + (1-sirenPulse) * 0.3})`;
+    ctx.beginPath(); ctx.ellipse(sBar2.x, sBar2.y, 5, 3, 0, 0, Math.PI*2); ctx.fill();
+
+    // Reflexo da sirene no teto
+    ctx.globalAlpha = 0.12 * sirenPulse;
+    ctx.fillStyle = '#ff2233';
+    ctx.beginPath(); ctx.ellipse(sBar1.x, sBar1.y + 4, 14, 5, 0, 0, Math.PI*2); ctx.fill();
+    ctx.globalAlpha = 0.12 * (1 - sirenPulse);
+    ctx.fillStyle = '#0088ff';
+    ctx.beginPath(); ctx.ellipse(sBar2.x, sBar2.y + 4, 14, 5, 0, 0, Math.PI*2); ctx.fill();
+    ctx.restore();
+
+    // — FARÓIS FRONTAIS —
+    ctx.save();
+    ctx.shadowBlur = 20;
+    ctx.shadowColor = '#ffffcc';
+    const h1 = iso(vgx, vgy + vW * 0.2, vH * 0.55);
+    const h2 = iso(vgx, vgy + vW * 0.8, vH * 0.55);
+    // Carcaça do farol
+    ctx.fillStyle = '#334455';
+    ctx.beginPath(); ctx.ellipse(h1.x, h1.y, 5, 3.5, 0, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(h2.x, h2.y, 5, 3.5, 0, 0, Math.PI*2); ctx.fill();
+    // Luz
+    ctx.fillStyle = 'rgba(255,255,200,0.95)';
+    ctx.beginPath(); ctx.ellipse(h1.x, h1.y, 3, 2, 0, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(h2.x, h2.y, 3, 2, 0, 0, Math.PI*2); ctx.fill();
+    // Cone de luz no chão
+    ctx.globalAlpha = 0.08;
+    ctx.fillStyle = '#ffffaa';
+    ctx.beginPath();
+    ctx.moveTo(h1.x, h1.y);
+    const lc1 = iso(vgx - 1.5, vgy + vW * 0.05, 0);
+    const lc2 = iso(vgx - 1.5, vgy + vW * 0.5,  0);
+    ctx.lineTo(lc1.x, lc1.y); ctx.lineTo(lc2.x, lc2.y);
+    ctx.closePath(); ctx.fill();
+    ctx.restore();
+}
+
+/* Semáforo 3D no canvas */
+let lightState = 'green'; // 'green' | 'red'
+
+function drawTrafficLight3D() {
+    const sfp = iso(3, 17, 3);
+    const r1 = iso(3, 17, 3.5);
+    const r2 = iso(3, 17, 3.2);
+    const r3 = iso(3, 17, 2.9);
+
+    const colors = {
+        red:    lightState === 'red'    ? '#ff3333' : '#200808',
+        yellow: '#1a1505',
+        green:  lightState === 'green'  ? '#00ff88' : '#002210',
+    };
+
+    ctx.save();
+    [[r1, colors.red], [r2, colors.yellow], [r3, colors.green]].forEach(([p, c]) => {
+        ctx.shadowColor = c;
+        ctx.shadowBlur = (c !== '#200808' && c !== '#1a1505' && c !== '#002210') ? 14 : 0;
+        ctx.fillStyle = c;
+        ctx.beginPath(); ctx.arc(p.x, p.y, 5, 0, Math.PI * 2); ctx.fill();
+    });
+    ctx.restore();
+}
+
+/* ══ LOOP DE RENDERIZAÇÃO ══ */
+let frameId;
+function render() {
+    ctx.clearRect(0, 0, W, H);
+
+    // Céu com gradiente
+    const skyGrad = ctx.createLinearGradient(0, 0, 0, H * 0.6);
+    skyGrad.addColorStop(0, '#020810');
+    skyGrad.addColorStop(1, '#040d1a');
+    ctx.fillStyle = skyGrad;
+    ctx.fillRect(0, 0, W, H);
+
+    // Estrelas
+    ctx.save();
+    for (let i = 0; i < 80; i++) {
+        const sx = ((i * 137.5) % W);
+        const sy = ((i * 97.3) % (H * 0.45));
+        const alpha = 0.2 + (Math.sin(Date.now() * 0.001 + i) + 1) * 0.15;
+        ctx.fillStyle = `rgba(200,238,221,${alpha})`;
+        ctx.fillRect(sx, sy, 1, 1);
+    }
+    ctx.restore();
+
+    drawGround();
+
+    // Prédios lado esquerdo
+    [
+        [1,  0,  1.8, 1.2, 3.2, '#0d2218', '#092010', '#0b2a1a', true],
+        [1,  2,  1.5, 1.0, 5.5, '#0c201e', '#071c1a', '#09242a', true],
+        [1,  4,  2.0, 1.4, 4.0, '#0d1e28', '#081a22', '#0a2230', true],
+        [1,  6,  1.6, 1.1, 6.5, '#0c2218', '#071e14', '#09261e', true],
+        [1,  9,  1.8, 1.3, 3.8, '#0d1e26', '#081a20', '#0a242e', true],
+        [1, 12,  2.2, 1.5, 5.0, '#0c2420', '#07201c', '#09282a', true],
+        [1, 15,  1.4, 1.0, 4.5, '#0d2220', '#081e1c', '#0a2628', true],
+    ].forEach(b => drawBuilding(...b));
+
+    // Prédios lado direito
+    [
+        [6,  0,  2.0, 1.3, 4.5, '#0d2218', '#092010', '#0b2a1a', true],
+        [6,  3,  1.5, 1.1, 6.0, '#0c2022', '#071c20', '#09242e', true],
+        [6,  6,  1.8, 1.2, 3.8, '#0d1e26', '#081a22', '#0a2230', true],
+        [6,  9,  2.2, 1.5, 5.5, '#0c2418', '#072018', '#09281e', true],
+        [6, 12,  1.6, 1.0, 4.2, '#0d2220', '#081e1c', '#0a2428', true],
+        [6, 15,  2.0, 1.3, 3.5, '#0c2026', '#071c22', '#09242e', true],
+    ].forEach(b => drawBuilding(...b));
+
+    // Rua
+    const rA = iso(3, 0,  0), rB = iso(3, 18, 0);
+    const rC = iso(6, 18, 0), rD = iso(6, 0,  0);
+    ctx.beginPath();
+    ctx.moveTo(rA.x,rA.y); ctx.lineTo(rB.x,rB.y);
+    ctx.lineTo(rC.x,rC.y); ctx.lineTo(rD.x,rD.y);
+    ctx.closePath();
+    const roadGrad = ctx.createLinearGradient(rA.x, rA.y, rD.x, rD.y);
+    roadGrad.addColorStop(0, '#060e18');
+    roadGrad.addColorStop(1, '#040c16');
+    ctx.fillStyle = roadGrad;
+    ctx.fill();
+
+    // Linha divisória tracejada
+    ctx.setLineDash([14, 20]);
+    ctx.strokeStyle = 'rgba(0,255,136,0.22)';
+    ctx.lineWidth = 1.5;
+    const lA = iso(4.5, 0.5, 0.01), lB = iso(4.5, 17, 0.01);
+    ctx.beginPath(); ctx.moveTo(lA.x,lA.y); ctx.lineTo(lB.x,lB.y); ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Bordas da rua
+    ctx.strokeStyle = 'rgba(0,255,136,0.4)';
+    ctx.lineWidth = 1.5;
+    const e1a = iso(3, 0.5, 0.01), e1b = iso(3, 17, 0.01);
+    const e2a = iso(6, 0.5, 0.01), e2b = iso(6, 17, 0.01);
+    ctx.beginPath(); ctx.moveTo(e1a.x,e1a.y); ctx.lineTo(e1b.x,e1b.y); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(e2a.x,e2a.y); ctx.lineTo(e2b.x,e2b.y); ctx.stroke();
+
+    // Postes
+    for (let pole = 1; pole <= 16; pole += 4) {
+        const pBase = iso(3, pole, 0);
+        const pTop  = iso(3, pole, 2.8);
+        ctx.strokeStyle = 'rgba(0,255,136,0.25)';
+        ctx.lineWidth = 0.8;
+        ctx.beginPath(); ctx.moveTo(pBase.x, pBase.y); ctx.lineTo(pTop.x, pTop.y); ctx.stroke();
+        ctx.save();
+        ctx.shadowColor = '#00ff88';
+        ctx.shadowBlur = 12;
+        ctx.fillStyle = 'rgba(0,255,136,0.8)';
+        ctx.beginPath(); ctx.arc(pTop.x, pTop.y, 3, 0, Math.PI * 2); ctx.fill();
+        ctx.restore();
+
+        // Cone de luz no chão
+        const lightCone = iso(3, pole, 0);
+        const coneGrad = ctx.createRadialGradient(lightCone.x, lightCone.y, 0, lightCone.x, lightCone.y, 30);
+        coneGrad.addColorStop(0, 'rgba(0,255,136,0.06)');
+        coneGrad.addColorStop(1, 'transparent');
+        ctx.fillStyle = coneGrad;
+        ctx.beginPath(); ctx.ellipse(lightCone.x, lightCone.y, 30, 14, 0, 0, Math.PI * 2); ctx.fill();
+    }
+
+    // Veículo
+    drawVehicle(vehicleX);
+
+    // Semáforo 3D
+    drawTrafficLight3D();
+
+    frameId = requestAnimationFrame(render);
+}
+
+/* ══ ANIMAÇÃO DO VEÍCULO ══ */
+function animateVehicle(from, to, duration, onDone) {
+    isMoving = true;
+    startX = from;
+    targetX = to;
+    animStart = performance.now();
+
+    function step(now) {
+        const t = Math.min((now - animStart) / duration, 1);
+        const ease = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
+        vehicleX = startX + (targetX - startX) * ease;
+        if (t < 1) {
+            requestAnimationFrame(step);
+        } else {
+            vehicleX = targetX;
+            isMoving = false;
+            if (onDone) onDone();
+        }
+    }
+    requestAnimationFrame(step);
+}
+
+/* ══ LÓGICA DO JOGO ══ */
+const talks = {
+    err: `Divergência! Lembre: <strong>v = ΔS / Δt</strong>. Substitua os valores e calcule novamente!`,
+    win: `<span class="gold">MISSÃO COMPLETA!</span> Você dominou o <strong>Movimento Uniforme</strong>! V-PHYS registra sua conquista.`,
+};
+
+function setTalk(html) {
+    const el = document.getElementById('dialogue-text');
+    el.style.transition = 'opacity .18s';
+    el.style.opacity = 0;
+    setTimeout(() => { el.innerHTML = html; el.style.opacity = 1; }, 180);
+}
+
+function loadLevel() {
+    const m = missoes[current];
+
+    document.getElementById('dist-val').innerText = m.s + ' m';
+    document.getElementById('time-val').innerText = m.t + ' s';
+    document.getElementById('ans-input').value = '';
+    document.getElementById('feedback').innerText = '';
+    document.getElementById('feedback').className = '';
+    document.getElementById('hud-sector').innerText = m.sector.padStart(2, '0');
+    document.getElementById('hud-status').innerText = 'AGUARDANDO';
+    document.getElementById('sys-tag').innerText = `V-PHYS v2.0 · FASE ${current + 1} DE ${missoes.length}`;
+
+    // XP bar
+    document.getElementById('xp-bar').style.width = (current / missoes.length * 100) + '%';
+
+    // Badges
+    ['b1','b2','b3'].forEach((id, i) => {
+        document.getElementById(id).classList.toggle('on', i < current);
+    });
+
+    // Nível com indicador de dificuldade
+    const nivelInfo = NIVEIS[m.nivelIdx];
+    document.getElementById('lvl-txt').innerHTML =
+        `<span style="color:${nivelInfo.cor};font-size:.48rem;display:block;letter-spacing:2px;margin-bottom:2px;">${nivelInfo.nome}</span>` +
+        `FASE: <span>${m.fase}</span>`;
+
+    // Semáforo
+    setLight('green');
+
+    // Veículo volta ao início
+    vehicleX = 0;
+
+    setTalk(m.msg);
+}
+
+function setLight(state) {
+    lightState = state;
+    document.getElementById('tl-red').className    = 'tl-dot' + (state === 'red'    ? ' red-on'   : '');
+    document.getElementById('tl-yellow').className = 'tl-dot' + (state === 'yellow' ? ' yellow-on': '');
+    document.getElementById('tl-green').className  = 'tl-dot' + (state === 'green'  ? ' green-on' : '');
+}
+
+function verificar() {
+    if (isMoving) return;
+    const input = parseFloat(document.getElementById('ans-input').value);
+    const m = missoes[current];
+    const fb = document.getElementById('feedback');
+
+    if (isNaN(input)) return;
+
+    if (Math.abs(input - m.v) < 0.1) {
+        // Correto!
+        bipSucesso();
+        fb.innerHTML = '<span style="color:var(--neon)">✓ SINCRONIZADO! INICIANDO MOVIMENTO...</span>';
+        fb.className = 'fb-ok';
+        document.getElementById('hud-status').innerText = 'EM TRÂNSITO';
+        document.getElementById('speed-display').innerText = m.v;
+
+        setLight('green');
+
+        animateVehicle(0, 0.98, ANIM_DUR, () => {
+            current++;
+            if (current < missoes.length) {
+                fb.innerHTML = `<span style="color:var(--neon)">${missoes[current - 1].ok}</span>`;
+                document.getElementById('xp-bar').style.width = (current / missoes.length * 100) + '%';
+                ['b1','b2','b3'].forEach((id, i) => {
+                    document.getElementById(id).classList.toggle('on', i < current);
+                });
+                document.getElementById('speed-display').innerText = '—';
+                document.getElementById('hud-status').innerText = 'PRONTO';
+                setTimeout(loadLevel, 2800);
+            } else {
+                // VITÓRIA
+                setLight('green');
+                document.getElementById('xp-bar').style.width = '100%';
+                ['b1','b2','b3'].forEach(id => document.getElementById(id).classList.add('on'));
+                document.getElementById('hud-status').innerText = 'CONCLUÍDO';
+                document.getElementById('speed-display').innerText = '★';
+
+                const jaConquistado = localStorage.getItem('vphys_mu_master') === 'true';
+
+                if (!jaConquistado) {
+                    bipVitoria();
+                    // Primeira vez — salva, notifica, mostra banner e relatório
+                    setTalk(talks.win);
+                    localStorage.setItem('vphys_mu_done', 'true');
+                    localStorage.setItem('vphys_mu_master', 'true');
+                    try { window.parent.postMessage({ tipo: 'conquista_mu' }, '*'); } catch(e) {}
+
+                    fb.innerHTML = `
+                        <div style="
+                            display:flex;flex-direction:column;align-items:center;gap:6px;
+                            padding:10px 0;animation:fadeInWin .5s ease;
+                        ">
+                            <div style="
+                                font-family:'Orbitron',monospace;font-size:.75rem;font-weight:900;
+                                color:#f1c40f;letter-spacing:3px;
+                                text-shadow:0 0 18px rgba(241,196,15,0.8);
+                            ">★ CONQUISTA DESBLOQUEADA ★</div>
+                            <div style="
+                                font-family:'Orbitron',monospace;font-size:.58rem;font-weight:700;
+                                color:#fff;letter-spacing:2px;
+                                background:linear-gradient(135deg,rgba(241,196,15,0.12),rgba(241,196,15,0.04));
+                                border:1px solid rgba(241,196,15,0.4);
+                                padding:5px 14px;border-radius:3px;
+                            ">MESTRE DOS SINAIS</div>
+                        </div>
+                    `;
+                    fb.className = 'fb-ok';
+                    document.getElementById('sys-tag').innerHTML =
+                        '<span style="color:#f1c40f;letter-spacing:2px;">★ RANK: MESTRE DOS SINAIS · MISSÃO COMPLETA</span>';
+
+                    setTimeout(() => {
+                        document.getElementById('mission-report').style.display = 'block';
+                    }, 1400);
+
+                } else {
+                    // Revisita — apenas elogio simples, sem banner nem relatório
+                    setTalk(`<span class="gold">Perfeito!</span> Você ainda domina o <strong>Movimento Uniforme</strong>. Quer um novo lote de desafios?`);
+                    fb.innerHTML = `
+                        <div style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:8px 0;">
+                            <span style="color:var(--neon);font-family:'Share Tech Mono',monospace;font-size:.7rem;">✓ RODADA CONCLUÍDA · MESTRE DOS SINAIS</span>
+                            <button onclick="ativarModoPratica()" style="
+                                margin-top:4px;
+                                background:transparent;border:1.5px solid var(--neon);
+                                color:var(--neon);padding:7px 18px;
+                                font-family:'Orbitron',monospace;font-size:.5rem;
+                                font-weight:700;letter-spacing:2px;cursor:pointer;border-radius:5px;transition:.2s;
+                            ">↺ NOVA RODADA</button>
+                        </div>
+                    `;
+                    fb.className = 'fb-ok';
+                    document.getElementById('sys-tag').innerHTML =
+                        '<span style="color:var(--neon);letter-spacing:2px;">MODO PRÁTICA · MESTRE DOS SINAIS</span>';
+                }
+            }
+        });
+    } else {
+        // Errado
+        bipErro();
+        fb.innerHTML = '<span style="color:#ff7070">✗ ERRO! Sinal fechado — veículo bloqueado.</span>';
+        fb.className = 'fb-err';
+        setLight('red');
+        setTalk(talks.err);
+        document.getElementById('hud-status').innerText = 'BLOQUEADO';
+
+        setTimeout(() => {
+            setLight('green');
+            document.getElementById('hud-status').innerText = 'AGUARDANDO';
+        }, 2000);
+    }
+}
+
+// Enter no input
+document.getElementById('ans-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter') verificar();
+});
+
+/* ══ FEEDBACK AUDITIVO ══ */
+function bipSucesso() {
+    try {
+        const ac = new AudioContext();
+        const osc = ac.createOscillator();
+        const gain = ac.createGain();
+        osc.connect(gain); gain.connect(ac.destination);
+        osc.type = 'sine'; osc.frequency.value = 880;
+        gain.gain.setValueAtTime(0.3, ac.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.0001, ac.currentTime + 0.5);
+        osc.start(); osc.stop(ac.currentTime + 0.5);
+    } catch(e) {}
+}
+function bipErro() {
+    try {
+        const ac = new AudioContext();
+        const osc = ac.createOscillator();
+        const gain = ac.createGain();
+        osc.connect(gain); gain.connect(ac.destination);
+        osc.type = 'sawtooth'; osc.frequency.value = 110;
+        gain.gain.setValueAtTime(0.3, ac.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.0001, ac.currentTime + 0.3);
+        osc.start(); osc.stop(ac.currentTime + 0.3);
+    } catch(e) {}
+}
+function bipVitoria() {
+    try {
+        const ac = new AudioContext();
+        const notas = [523, 659, 784, 1047]; // C5 E5 G5 C6
+        notas.forEach((freq, i) => {
+            const osc = ac.createOscillator();
+            const gain = ac.createGain();
+            osc.connect(gain); gain.connect(ac.destination);
+            osc.type = 'sine'; osc.frequency.value = freq;
+            const t = ac.currentTime + i * 0.15;
+            gain.gain.setValueAtTime(0.25, t);
+            gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.4);
+            osc.start(t); osc.stop(t + 0.4);
+        });
+    } catch(e) {}
+}
+
+/* ══ MODO PRÁTICA — questões 100% aleatórias livres ══ */
+function ativarModoPratica() {
+    document.getElementById('mission-report').style.display = 'none';
+    const ordem = [0, 1, 2].sort(() => Math.random() - 0.5);
+    missoes = ordem.map(nivelIdx => gerarMissao(nivelIdx));
+    current = 0;
+    vehicleX = 0;
+    isMoving = false;
+    document.getElementById('xp-bar').style.width = '0%';
+    ['b1','b2','b3'].forEach(id => document.getElementById(id).classList.remove('on'));
+    document.getElementById('sys-tag').innerHTML = 'SISTEMA V-PHYS v2.0 · MODO PRÁTICA';
+    setTalk(`<span class="gold">MODO PRÁTICA!</span> Desafios gerados aleatoriamente. Treine à vontade!`);
+    setTimeout(loadLevel, 900);
+}
+
+/* ══ VOLTAR À CENTRAL ══ */
+function voltarAoCentral() {
+    if (window.parent !== window) {
+        window.parent.postMessage({ tipo: 'voltar_menu' }, '*');
+    } else {
+        window.location.href = 'index.html';
+    }
+}
+
+/* ══ INIT — detecta se já tem título conquistado ══ */
+render();
+
+if (localStorage.getItem('vphys_mu_master') === 'true') {
+    // Já conquistou — entra direto no modo prática sem cerimônia
+    const ordem = [0, 1, 2].sort(() => Math.random() - 0.5);
+    missoes = ordem.map(nivelIdx => gerarMissao(nivelIdx));
+    document.getElementById('sys-tag').innerHTML = 'SISTEMA V-PHYS v2.0 · MODO PRÁTICA';
+    setTalk(`Bem-vindo de volta, <strong>Mestre dos Sinais</strong>! Novos desafios aleatórios te esperam. Calcule a <strong>velocidade média</strong> e cruze no verde!`);
+    loadLevel();
+} else {
+    // Primeira vez — campanha normal
+    loadLevel();
+}
+</script>
+</body>
+</html>

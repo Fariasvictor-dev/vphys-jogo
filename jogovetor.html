@@ -1,0 +1,772 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>V-PHYS | Vetor-Lab: Operação Pitágoras</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&family=Exo+2:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --neon: #00ffaa;
+            --neon2: #00aaff;
+            --gold: #f1c40f;
+            --bg: #050c14;
+            --panel: #06101a;
+            --border: rgba(0,255,170,0.18);
+            --accent: #ff6b35;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background: var(--bg);
+            color: #c8eedd;
+            font-family: 'Exo 2', sans-serif;
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+        }
+
+        body::after {
+            content:'';
+            position:fixed;
+            inset:0;
+            background: repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,0,0,0.07) 3px,rgba(0,0,0,0.07) 4px);
+            pointer-events:none;
+            z-index:999;
+        }
+
+        .viewport {
+            flex: 1;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            padding: 18px 20px 0;
+            background: radial-gradient(ellipse at 35% 65%, rgba(0,80,50,0.12) 0%, transparent 65%);
+        }
+
+        .dialogue-area {
+            width: 100%;
+            max-width: 600px;
+            display: flex;
+            align-items: flex-end;
+            gap: 14px;
+            margin-bottom: 16px;
+        }
+
+        .char-svg { flex-shrink: 0; filter: drop-shadow(0 0 14px rgba(0,255,170,0.35)); }
+
+        .bubble {
+            flex: 1;
+            background: linear-gradient(135deg,rgba(0,30,20,0.97),rgba(0,18,34,0.97));
+            border: 1.5px solid var(--neon);
+            border-radius: 10px 10px 10px 4px;
+            padding: 12px 16px;
+            position: relative;
+            box-shadow: 0 0 22px rgba(0,255,170,0.12), inset 0 0 25px rgba(0,255,170,0.03);
+        }
+        .bubble::after {
+            content:'';
+            position:absolute;
+            bottom:-11px; left:50px;
+            border-left:11px solid transparent;
+            border-right:7px solid transparent;
+            border-top:11px solid var(--neon);
+        }
+        .bubble::before {
+            content:'';
+            position:absolute;
+            bottom:-8px; left:51px;
+            border-left:10px solid transparent;
+            border-right:6px solid transparent;
+            border-top:9px solid #06101a;
+            z-index:1;
+        }
+        .bubble-name {
+            font-family:'Orbitron',monospace;
+            font-size:.52rem;
+            letter-spacing:3px;
+            color:var(--neon);
+            opacity:.6;
+            margin-bottom:5px;
+        }
+        #dialogue-text {
+            font-size:.84rem;
+            line-height:1.65;
+            color:#dff5ec;
+        }
+        #dialogue-text strong { color:var(--neon); font-weight:600; }
+        #dialogue-text em { color:#7dd8ff; font-style:normal; }
+        #dialogue-text .gold { color:var(--gold); font-weight:600; }
+
+        #vectorCanvas {
+            max-width: 600px;
+            width: 100%;
+            display: block;
+            border: 1px solid rgba(0,255,170,0.06);
+            border-radius: 4px;
+        }
+
+        /* PANEL */
+        .controls {
+            width: 298px;
+            background: var(--panel);
+            border-left: 2px solid rgba(0,255,170,0.18);
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            overflow: hidden;
+        }
+        .controls::before {
+            content:'';
+            position:absolute;
+            top:0;left:0;right:0;
+            height:2px;
+            background:linear-gradient(90deg,transparent,var(--neon),transparent);
+        }
+
+        .ctrl-header { padding:18px 20px 13px; border-bottom:1px solid rgba(0,255,170,0.08); }
+
+        .badges { display:flex; gap:7px; margin-bottom:10px; }
+        .badge {
+            flex:1; height:7px;
+            background:rgba(0,255,170,0.06);
+            border:1px solid rgba(0,255,170,0.18);
+            border-radius:4px;
+            transition: all .7s;
+        }
+        .badge.active {
+            background: linear-gradient(90deg,var(--neon),var(--neon2));
+            box-shadow: 0 0 10px rgba(0,255,170,0.5);
+        }
+        .badge-labels { display:flex; justify-content:space-between; margin-bottom:9px; }
+        .badge-label { font-family:'Share Tech Mono',monospace; font-size:.48rem; color:rgba(0,255,170,0.38); letter-spacing:1px; }
+
+        .ctrl-lvl {
+            font-family:'Orbitron',monospace;
+            font-size:.62rem; font-weight:700; color:#fff; letter-spacing:1px;
+        }
+        .ctrl-lvl span { color:var(--neon); }
+
+        .ctrl-body { padding:14px 20px; flex:1; display:flex; flex-direction:column; gap:12px; }
+
+        .vc {
+            background:rgba(255,255,255,0.025);
+            border:1px solid rgba(0,255,170,0.1);
+            border-radius:7px;
+            padding:9px 12px;
+            position:relative; overflow:hidden;
+        }
+        .vc::before { content:''; position:absolute; left:0;top:0;bottom:0; width:3px; }
+        .vc-a::before { background:var(--neon); }
+        .vc-b::before { background:var(--neon2); }
+        .vc-lbl { font-family:'Share Tech Mono',monospace; font-size:.55rem; color:rgba(200,238,221,.4); letter-spacing:2px; margin-bottom:3px; }
+        .vc-val { font-family:'Orbitron',monospace; font-size:1.15rem; font-weight:700; }
+        .vc-a .vc-val { color:var(--neon); }
+        .vc-b .vc-val { color:var(--neon2); }
+        .vc-sub { font-size:.58rem; color:rgba(200,238,221,.32); font-family:'Share Tech Mono',monospace; margin-top:2px; }
+
+        .formula {
+            background:rgba(255,107,53,.05);
+            border:1px solid rgba(255,107,53,.2);
+            border-radius:6px;
+            padding:8px 12px; text-align:center;
+        }
+        .formula-lbl { font-size:.52rem; color:rgba(255,107,53,.5); letter-spacing:2px; font-family:'Share Tech Mono',monospace; margin-bottom:3px; }
+        .formula-eq { font-family:'Share Tech Mono',monospace; font-size:.88rem; color:var(--accent); }
+
+        .inp-lbl { font-size:.52rem; letter-spacing:2px; color:rgba(200,238,221,.38); font-family:'Share Tech Mono',monospace; }
+
+        input[type=number] {
+            width:100%;
+            background:rgba(0,255,170,.04);
+            border:1.5px solid rgba(0,255,170,.32);
+            color:var(--neon);
+            padding:12px;
+            font-family:'Orbitron',monospace;
+            font-size:1.05rem;
+            text-align:center;
+            border-radius:6px;
+            outline:none;
+            transition:.2s;
+        }
+        input[type=number]:focus { border-color:var(--neon); box-shadow:0 0 14px rgba(0,255,170,.18); }
+        input[type=number]::placeholder { color:rgba(0,255,170,.2); font-size:.72rem; }
+
+        button#btn {
+            width:100%;
+            background:linear-gradient(135deg,rgba(0,255,170,.13),rgba(0,170,255,.07));
+            border:1.5px solid var(--neon);
+            color:var(--neon);
+            padding:12px;
+            font-family:'Orbitron',monospace;
+            font-size:.62rem; font-weight:700; letter-spacing:2px;
+            cursor:pointer; border-radius:6px; transition:.2s;
+        }
+        button#btn:hover { box-shadow:0 0 18px rgba(0,255,170,.3); transform:translateY(-1px); }
+
+        #feedback {
+            font-family:'Share Tech Mono',monospace;
+            font-size:.7rem; letter-spacing:1px;
+            min-height:28px; border-radius:5px;
+            padding:5px 10px; text-align:center;
+            display:flex; align-items:center; justify-content:center;
+            transition:.3s;
+        }
+        .fb-ok  { background:rgba(0,255,170,.07); border:1px solid rgba(0,255,170,.2); color:var(--neon); }
+        .fb-err { background:rgba(255,80,80,.07);  border:1px solid rgba(255,80,80,.2);  color:#ff7070; }
+
+        .ctrl-footer { padding:12px 20px 16px; border-top:1px solid rgba(0,255,170,.08); }
+        .xp-lbl { font-size:.48rem; letter-spacing:3px; color:rgba(200,238,221,.28); font-family:'Share Tech Mono',monospace; margin-bottom:5px; }
+        .xp-track { height:5px; background:rgba(0,255,170,.05); border:1px solid rgba(0,255,170,.12); border-radius:3px; overflow:hidden; }
+        #xp-bar { height:100%; width:0%; background:linear-gradient(90deg,var(--neon),var(--neon2)); border-radius:3px; transition:width 1.2s cubic-bezier(.4,0,.2,1); }
+        .sys-tag { font-family:'Share Tech Mono',monospace; font-size:.46rem; color:rgba(0,255,170,.18); margin-top:7px; letter-spacing:1px; }
+
+        /* ── RELATÓRIO DE ENGENHARIA ── */
+        #mission-report {
+            display: none;
+            position: fixed;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            width: 85%; max-width: 600px;
+            background: #08100c;
+            border: 2px solid #f1c40f;
+            padding: 30px;
+            z-index: 9999;
+            box-shadow: 0 0 50px #000, 0 0 20px rgba(241,196,15,0.3);
+            text-align: center;
+            color: #d4f5e2;
+            border-radius: 8px;
+        }
+        .formula-highlight {
+            background: rgba(241,196,15,0.1);
+            border: 1px dashed #f1c40f;
+            padding: 15px; margin: 20px 0;
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 1rem; color: #f1c40f;
+            line-height: 1.7; border-radius: 4px;
+        }
+        .btn-report {
+            background: transparent;
+            border: 1px solid #00ffaa;
+            color: #00ffaa;
+            padding: 10px 20px;
+            cursor: pointer;
+            font-family: 'Orbitron', monospace;
+            font-size: 0.58rem; letter-spacing: 1.5px;
+            margin: 8px 6px 0; border-radius: 4px; transition: 0.25s;
+        }
+        .btn-report:hover { background: #00ffaa; color: #000; }
+    </style>
+</head>
+<body>
+
+<div class="viewport">
+    <div class="dialogue-area">
+        <svg class="char-svg" viewBox="0 0 80 120" width="80" height="120" xmlns="http://www.w3.org/2000/svg">
+            <ellipse cx="40" cy="116" rx="26" ry="4" fill="rgba(0,255,170,0.15)"/>
+            <rect x="24" y="82" width="11" height="32" rx="5" fill="#0b2820"/>
+            <rect x="45" y="82" width="11" height="32" rx="5" fill="#0b2820"/>
+            <rect x="20" y="108" width="16" height="8" rx="4" fill="#051a10"/>
+            <rect x="44" y="108" width="16" height="8" rx="4" fill="#051a10"/>
+            <rect x="17" y="46" width="46" height="40" rx="9" fill="#0a3424"/>
+            <rect x="35" y="50" width="2" height="30" rx="1" fill="rgba(0,255,170,0.25)"/>
+            <rect x="7" y="48" width="12" height="28" rx="6" fill="#0a3424"/>
+            <rect x="61" y="48" width="12" height="28" rx="6" fill="#0a3424"/>
+            <ellipse cx="13" cy="77" rx="7" ry="6" fill="#051a10"/>
+            <ellipse cx="67" cy="77" rx="7" ry="6" fill="#051a10"/>
+            <rect x="33" y="35" width="14" height="13" rx="6" fill="#c89a72"/>
+            <ellipse cx="40" cy="28" rx="20" ry="22" fill="#c89a72"/>
+            <rect x="21" y="20" width="38" height="15" rx="7" fill="rgba(0,20,14,0.88)" stroke="rgba(0,255,170,0.6)" stroke-width="1.4"/>
+            <rect x="24" y="23" width="13" height="9" rx="4" fill="rgba(0,200,150,0.28)"/>
+            <rect x="43" y="23" width="13" height="9" rx="4" fill="rgba(0,150,255,0.28)"/>
+            <rect x="38" y="24" width="4" height="7" rx="2" fill="rgba(0,255,170,0.35)"/>
+            <path d="M21 26 Q19 8 40 6 Q61 8 59 26" fill="#180800"/>
+            <rect x="17" y="46" width="46" height="3" rx="1" fill="rgba(0,255,170,0.12)"/>
+            <rect x="33" y="46" width="14" height="7" rx="3" fill="rgba(0,255,170,0.15)" stroke="rgba(0,255,170,0.4)" stroke-width="0.8"/>
+        </svg>
+        <div class="bubble">
+            <div class="bubble-name">DR. VEKTOR — SISTEMA V-PHYS</div>
+            <div id="dialogue-text">Inicializando sistema...</div>
+        </div>
+    </div>
+
+    <canvas id="vectorCanvas" width="600" height="310"></canvas>
+</div>
+
+<div class="controls">
+    <div class="ctrl-header">
+        <div class="badges">
+            <div class="badge" id="b1"></div>
+            <div class="badge" id="b2"></div>
+            <div class="badge" id="b3"></div>
+        </div>
+        <div class="badge-labels">
+            <span class="badge-label">CADETE</span>
+            <span class="badge-label">OFICIAL</span>
+            <span class="badge-label">COMANDANTE</span>
+        </div>
+        <div class="ctrl-lvl" id="lvl-txt">ESTADO: <span>CADETE // NÍVEL 1</span></div>
+    </div>
+
+    <div class="ctrl-body">
+        <div class="vc vc-a">
+            <div class="vc-lbl">VETOR A — HORIZONTAL (0°)</div>
+            <div class="vc-val"><span id="valA">3</span> <span style="font-size:.62rem;opacity:.5">N</span></div>
+            <div class="vc-sub">Componente Fx</div>
+        </div>
+        <div class="vc vc-b">
+            <div class="vc-lbl">VETOR B — VERTICAL (90°)</div>
+            <div class="vc-val"><span id="valB">4</span> <span style="font-size:.62rem;opacity:.5">N</span></div>
+            <div class="vc-sub">Componente Fy</div>
+        </div>
+
+        <div class="formula">
+            <div class="formula-lbl">TEOREMA DE PITÁGORAS</div>
+            <div class="formula-eq">R = √(A² + B²)</div>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:8px;">
+            <div class="inp-lbl">RESULTANTE R =</div>
+            <input type="number" id="answer" step="0.1" placeholder="0.0">
+            <button id="btn" onclick="checkAnswer()">▶ VALIDAR VETOR</button>
+        </div>
+
+        <div id="feedback"></div>
+    </div>
+
+    <div class="ctrl-footer">
+        <div class="xp-lbl">PROGRESSO XP</div>
+        <div class="xp-track"><div id="xp-bar"></div></div>
+        <div class="sys-tag" id="sys-tag">SISTEMA V-PHYS v3.0 · AGUARDANDO ENTRADA...</div>
+    </div>
+</div>
+
+<script>
+const canvas = document.getElementById('vectorCanvas');
+const ctx = canvas.getContext('2d');
+
+// Usa o tamanho real do elemento, não fixo
+function resizeCanvas() {
+    const rect = canvas.getBoundingClientRect();
+    canvas.width  = rect.width  || 600;
+    canvas.height = rect.height || 310;
+}
+resizeCanvas();
+window.addEventListener('resize', () => { resizeCanvas(); drawScene(false); });
+
+const W = () => canvas.width;
+const H = () => canvas.height;
+
+let lvl = 1, valA, valB, resultR;
+let showResultant = false, animT = 0, animId;
+let pulseT = 0;
+
+const talks = {
+    q: {
+        1: [
+            `Tripulante, os propulsores laterais geraram dois vetores <strong>perpendiculares</strong>: <em>VA</em> N no eixo horizontal e <em>VB</em> N no eixo vertical. Calcule a <strong>força resultante R</strong> — a hipotenusa do triângulo de forças!`,
+            `Dois cabos ortogonais puxam uma carga: <em>VA</em> N para leste e <em>VB</em> N para norte. Qual a <strong>resultante R</strong> dessas forças? Use R = √(A² + B²).`,
+            `Missão de calibração: Fx = <em>VA</em> N e Fy = <em>VB</em> N atuam simultaneamente em 90°. A <strong>resultante R</strong> é a hipotenusa desse triângulo. Qual seu valor?`,
+        ],
+        2: [
+            `Nível 2! Agora os valores têm decimais. Componentes: <em>VA</em> N e <em>VB</em> N. Calcule <strong>R = √(A² + B²)</strong> e arredonde para 1 casa decimal!`,
+            `Sensores indicam Fx = <em>VA</em> N e Fy = <em>VB</em> N. A nave precisa da <strong>resultante R</strong> com precisão decimal para corrigir a rota!`,
+        ],
+        3: [
+            `Missão crítica, Comandante! Vetores de alta magnitude: <em>VA</em> N e <em>VB</em> N. A estabilidade da estação depende deste cálculo. Determine <strong>R</strong> com 1 decimal!`,
+            `Último desafio: Fx = <em>VA</em> N, Fy = <em>VB</em> N. Mostre que domina a composição vetorial e calcule a <strong>resultante final R</strong>!`,
+        ],
+    },
+    ok:  `<span class="gold">✓ CÁLCULO PERFEITO!</span> R = <em>RV</em> N confirmado. O vetor dourado é a <strong>hipotenusa</strong> do triângulo de forças — a resultante real do sistema!`,
+    err: `Divergência detectada! Substitua na fórmula: <strong>R = √(<em>VA</em>² + <em>VB</em>²)</strong> e extraia a raiz quadrada. Tente novamente!`,
+    win: `<span class="gold">MISSÃO COMPLETA, COMANDANTE!</span> Você dominou o cálculo de resultantes vetoriais. O Laboratório V-PHYS registra sua conquista máxima!`,
+};
+
+function setTalk(text) {
+    let t = (text||'')
+        .replace(/<em>VA<\/em>/g,`<em>${valA}</em>`)
+        .replace(/<em>VB<\/em>/g,`<em>${valB}</em>`)
+        .replace(/<em>RV<\/em>/g,`<em>${resultR}</em>`);
+    const el = document.getElementById('dialogue-text');
+    el.style.transition = 'opacity .2s';
+    el.style.opacity = 0;
+    setTimeout(() => { el.innerHTML = t; el.style.opacity = 1; }, 200);
+}
+
+// Isometric grid
+function drawGrid() {
+    const cw=35, ch=17, cols=14, rows=5, gx=80, gy=240;
+    ctx.strokeStyle='rgba(0,180,100,0.09)';
+    ctx.lineWidth=0.7;
+    for(let i=0;i<=rows;i++){
+        ctx.beginPath();
+        ctx.moveTo(gx+i*cw,gy-i*ch);
+        ctx.lineTo(gx+i*cw+cols*cw,gy-i*ch+cols*ch);
+        ctx.stroke();
+    }
+    for(let j=0;j<=cols;j++){
+        ctx.beginPath();
+        ctx.moveTo(gx+j*cw,gy+j*ch);
+        ctx.lineTo(gx+j*cw+rows*cw,gy+j*ch-rows*ch);
+        ctx.stroke();
+    }
+}
+
+const OX=150, OY=250;
+
+function getScale(){
+    const maxV=Math.max(valA,valB,1);
+    return Math.min((W()-OX-50)/maxV,(OY-30)/maxV);
+}
+
+function arrow(x0,y0,x1,y1,color,label,alpha){
+    ctx.save();
+    ctx.globalAlpha=alpha??1;
+    ctx.shadowColor=color; ctx.shadowBlur=14;
+    const g=ctx.createLinearGradient(x0,y0,x1,y1);
+    g.addColorStop(0,color+'88'); g.addColorStop(1,color);
+    ctx.strokeStyle=g; ctx.lineWidth=3.5; ctx.lineCap='round';
+    ctx.beginPath(); ctx.moveTo(x0,y0); ctx.lineTo(x1,y1); ctx.stroke();
+    const ang=Math.atan2(y1-y0,x1-x0), hl=13;
+    ctx.fillStyle=color;
+    ctx.beginPath();
+    ctx.moveTo(x1,y1);
+    ctx.lineTo(x1-hl*Math.cos(ang-.38),y1-hl*Math.sin(ang-.38));
+    ctx.lineTo(x1-hl*Math.cos(ang+.38),y1-hl*Math.sin(ang+.38));
+    ctx.closePath(); ctx.fill();
+    if(label){
+        ctx.shadowBlur=0;
+        ctx.font="bold 12px 'Orbitron',monospace";
+        ctx.fillStyle=color;
+        ctx.fillText(label,(x0+x1)/2-22,(y0+y1)/2-13);
+    }
+    ctx.restore();
+}
+
+function drawScene(pulse){
+    ctx.clearRect(0,0,W(),H());
+    drawGrid();
+
+    // Axes
+    ctx.save();
+    ctx.strokeStyle='rgba(0,255,170,0.17)';
+    ctx.lineWidth=1; ctx.setLineDash([5,9]);
+    ctx.beginPath(); ctx.moveTo(OX,OY); ctx.lineTo(W()-20,OY); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(OX,OY); ctx.lineTo(OX,15); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle='rgba(0,255,170,0.28)';
+    ctx.font="10px 'Share Tech Mono'";
+    ctx.fillText('X (0°)',W()-50,OY+14);
+    ctx.fillText('Y (90°)',OX+6,20);
+    ctx.restore();
+
+    // Origin
+    ctx.save();
+    ctx.fillStyle='rgba(0,255,170,0.5)';
+    ctx.shadowColor='#00ffaa'; ctx.shadowBlur=10;
+    ctx.beginPath(); ctx.arc(OX,OY,5,0,Math.PI*2); ctx.fill();
+    ctx.shadowBlur=0;
+    ctx.fillStyle='rgba(0,255,170,0.28)';
+    ctx.font="9px 'Share Tech Mono'";
+    ctx.fillText('O(0,0)',OX-24,OY+17);
+    ctx.restore();
+
+    const sc=getScale();
+    const ax=OX+valA*sc, ay=OY;
+    const bx=OX,           by=OY-valB*sc;
+    const rx=OX+valA*sc,   ry=OY-valB*sc;
+
+    // Right angle
+    const sq=12;
+    ctx.save();
+    ctx.strokeStyle='rgba(255,255,255,0.14)'; ctx.lineWidth=1;
+    ctx.strokeRect(OX+2,OY-sq,sq,sq);
+    ctx.restore();
+
+    // Ghost dashes
+    ctx.save();
+    ctx.strokeStyle='rgba(255,255,255,0.07)';
+    ctx.lineWidth=1; ctx.setLineDash([5,9]);
+    ctx.beginPath(); ctx.moveTo(ax,ay); ctx.lineTo(rx,ry); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(bx,by); ctx.lineTo(rx,ry); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.restore();
+
+    // A and B
+    arrow(OX,OY,ax,ay,'#00ffaa',`A=${valA}N`);
+    arrow(OX,OY,bx,by,'#00aaff',`B=${valB}N`);
+
+    // Resultant
+    if(showResultant){
+        const prog=Math.min(animT,1);
+        const ex=OX+(rx-OX)*prog;
+        const ey=OY+(ry-OY)*prog;
+
+        if(prog===1){
+            // Parallelogram fill
+            ctx.save();
+            ctx.fillStyle='rgba(241,196,15,0.06)';
+            ctx.beginPath();
+            ctx.moveTo(OX,OY); ctx.lineTo(ax,ay); ctx.lineTo(rx,ry); ctx.lineTo(bx,by);
+            ctx.closePath(); ctx.fill();
+            ctx.strokeStyle='rgba(241,196,15,0.2)';
+            ctx.lineWidth=1; ctx.setLineDash([4,7]);
+            ctx.beginPath();
+            ctx.moveTo(ax,ay); ctx.lineTo(rx,ry);
+            ctx.moveTo(bx,by); ctx.lineTo(rx,ry);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            ctx.restore();
+        }
+
+        const pa = pulse ? 0.65+0.35*Math.sin(pulseT*6) : 1;
+        arrow(OX,OY,ex,ey,'#f1c40f',null,pa);
+
+        if(prog===1){
+            const fa=Math.min((animT-1)*2.5,1);
+            ctx.save();
+            ctx.globalAlpha=fa;
+            ctx.font="bold 13px 'Orbitron',monospace";
+            ctx.fillStyle='#f1c40f';
+            ctx.shadowColor='#f1c40f'; ctx.shadowBlur=12;
+            ctx.fillText(`R = ${resultR} N`,OX+(rx-OX)*.45-20,OY+(ry-OY)*.45-16);
+            ctx.restore();
+            if(animT<1.4) animT+=0.014;
+        } else {
+            animT+=0.028;
+        }
+
+        if(pulse) pulseT+=0.05;
+        animId=requestAnimationFrame(()=>drawScene(pulse));
+    }
+}
+
+function initLevel(){
+    document.getElementById('answer').value='';
+    document.getElementById('feedback').innerHTML='';
+    document.getElementById('feedback').className='';
+    showResultant=false;
+    cancelAnimationFrame(animId);
+    animT=0; pulseT=0;
+
+    const names=['CADETE // NÍVEL 1','OFICIAL // NÍVEL 2','COMANDANTE // NÍVEL 3'];
+    document.getElementById('lvl-txt').innerHTML=`ESTADO: <span>${names[lvl-1]}</span>`;
+    ['b1','b2','b3'].forEach((id,i)=>{
+        document.getElementById(id).classList.toggle('active',i<lvl);
+    });
+    document.getElementById('xp-bar').style.width=([0,33,66][lvl-1]??0)+'%';
+
+    if(lvl===1){
+        const sets=[[3,4,5],[6,8,10],[5,12,13]];
+        const p=sets[Math.floor(Math.random()*sets.length)];
+        valA=p[0]; valB=p[1]; resultR=p[2];
+    } else if(lvl===2){
+        valA=parseFloat((Math.random()*8+2).toFixed(1));
+        valB=parseFloat((Math.random()*8+2).toFixed(1));
+        resultR=parseFloat(Math.sqrt(valA**2+valB**2).toFixed(1));
+    } else {
+        valA=Math.floor(Math.random()*50+20);
+        valB=Math.floor(Math.random()*50+20);
+        resultR=parseFloat(Math.sqrt(valA**2+valB**2).toFixed(1));
+    }
+
+    document.getElementById('valA').innerText=valA;
+    document.getElementById('valB').innerText=valB;
+
+    const pool=talks.q[lvl];
+    setTalk(pool[Math.floor(Math.random()*pool.length)]);
+    document.getElementById('sys-tag').innerText='SYS V-PHYS v3.0 · AGUARDANDO ENTRADA...';
+
+    drawScene(false);
+}
+
+function checkAnswer(){
+    const user=parseFloat(document.getElementById('answer').value);
+    if(isNaN(user)) return;
+    const fb=document.getElementById('feedback');
+
+    if(Math.abs(user-resultR)<0.25){
+        bipSucesso();
+        fb.innerHTML=`✓ VETOR SINCRONIZADO! R = ${resultR} N`;
+        fb.className='fb-ok';
+        setTalk(talks.ok);
+        document.getElementById('sys-tag').innerText='SINCRONIZAÇÃO: OK · PRÓXIMA MISSÃO...';
+
+        showResultant=true; animT=0; pulseT=0;
+        drawScene(true);
+
+        document.getElementById('xp-bar').style.width=[33,66,100][lvl-1]+'%';
+        ['b1','b2','b3'].forEach((id,i)=>document.getElementById(id).classList.toggle('active',i<lvl));
+
+        setTimeout(()=>{
+            lvl++;
+            if(lvl<=3){
+                initLevel();
+            } else {
+                document.getElementById('sys-tag').innerText='MISSÃO COMPLETA · RANK: MESTRE';
+                ['b1','b2','b3'].forEach(id=>document.getElementById(id).classList.add('active'));
+                document.getElementById('xp-bar').style.width='100%';
+
+                const jaConquistado = localStorage.getItem('vphys_vetores_master') === 'true';
+
+                if (!jaConquistado) {
+                    bipVitoria();
+                    // Primeira vez — salva, notifica, mostra relatório
+                    setTalk(talks.win);
+                    fb.innerHTML='★ MISSÃO COMPLETA! MESTRE DOS VETORES!';
+                    localStorage.setItem('vphys_vetores_done', 'true');
+                    localStorage.setItem('vphys_vetores_master', 'true');
+                    try { window.parent.postMessage({ tipo: 'conquista_vetores' }, '*'); } catch(e) {}
+                    setTimeout(() => {
+                        document.getElementById('mission-report').style.display = 'block';
+                    }, 1200);
+                } else {
+                    // Revisita — elogio simples, sem relatório nem conquista
+                    setTalk(`<span class="gold">Excelente!</span> Você continua dominando os vetores, <strong>Mestre</strong>. Quer treinar mais?`);
+                    fb.innerHTML = `
+                        <div style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:8px 0;">
+                            <span style="color:var(--neon);font-family:'Share Tech Mono',monospace;font-size:.7rem;">✓ RODADA CONCLUÍDA · MESTRE DOS VETORES</span>
+                            <button onclick="ativarModoPratica()" style="
+                                margin-top:4px;background:transparent;
+                                border:1.5px solid var(--neon);color:var(--neon);
+                                padding:7px 18px;font-family:'Orbitron',monospace;
+                                font-size:.5rem;font-weight:700;letter-spacing:2px;
+                                cursor:pointer;border-radius:5px;transition:.2s;
+                            ">↺ NOVA RODADA</button>
+                        </div>
+                    `;
+                    fb.className='fb-ok';
+                    document.getElementById('sys-tag').innerText='MODO PRÁTICA · MESTRE DOS VETORES';
+                }
+            }
+        },3200);
+    } else {
+        bipErro();
+        fb.innerHTML='✗ TRAJETÓRIA INCORRETA. REVISE O CÁLCULO.';
+        fb.className='fb-err';
+        setTalk(talks.err);
+    }
+}
+
+document.getElementById('answer').addEventListener('keydown',e=>{
+    if(e.key==='Enter') checkAnswer();
+});
+
+/* ══ FEEDBACK AUDITIVO ══ */
+function bipSucesso() {
+    try {
+        const ac = new AudioContext();
+        const osc = ac.createOscillator();
+        const gain = ac.createGain();
+        osc.connect(gain); gain.connect(ac.destination);
+        osc.type = 'sine'; osc.frequency.value = 880;
+        gain.gain.setValueAtTime(0.3, ac.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.0001, ac.currentTime + 0.5);
+        osc.start(); osc.stop(ac.currentTime + 0.5);
+    } catch(e) {}
+}
+function bipErro() {
+    try {
+        const ac = new AudioContext();
+        const osc = ac.createOscillator();
+        const gain = ac.createGain();
+        osc.connect(gain); gain.connect(ac.destination);
+        osc.type = 'sawtooth'; osc.frequency.value = 110;
+        gain.gain.setValueAtTime(0.3, ac.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.0001, ac.currentTime + 0.3);
+        osc.start(); osc.stop(ac.currentTime + 0.3);
+    } catch(e) {}
+}
+function bipVitoria() {
+    try {
+        const ac = new AudioContext();
+        const notas = [523, 659, 784, 1047];
+        notas.forEach((freq, i) => {
+            const osc = ac.createOscillator();
+            const gain = ac.createGain();
+            osc.connect(gain); gain.connect(ac.destination);
+            osc.type = 'sine'; osc.frequency.value = freq;
+            const t = ac.currentTime + i * 0.15;
+            gain.gain.setValueAtTime(0.25, t);
+            gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.4);
+            osc.start(t); osc.stop(t + 0.4);
+        });
+    } catch(e) {}
+}
+
+/* ══ MODO PRÁTICA ══ */
+function ativarModoPratica() {
+    document.getElementById('mission-report').style.display = 'none';
+    // Escolhe aleatoriamente entre nível 1 (triplas), 2 (decimais) ou 3 (grandes)
+    const nivelPratica = Math.floor(Math.random() * 3) + 1;
+    if (nivelPratica === 1) {
+        const sets = [[3,4,5],[6,8,10],[5,12,13],[8,15,17],[9,12,15]];
+        const p = sets[Math.floor(Math.random() * sets.length)];
+        valA = p[0]; valB = p[1]; resultR = p[2];
+    } else if (nivelPratica === 2) {
+        valA = parseFloat((Math.random() * 8 + 2).toFixed(1));
+        valB = parseFloat((Math.random() * 8 + 2).toFixed(1));
+        resultR = parseFloat(Math.sqrt(valA**2 + valB**2).toFixed(1));
+    } else {
+        valA = Math.floor(Math.random() * 50 + 20);
+        valB = Math.floor(Math.random() * 50 + 20);
+        resultR = parseFloat(Math.sqrt(valA**2 + valB**2).toFixed(1));
+    }
+
+    document.getElementById('lvl-txt').innerHTML = 'ESTADO: <span>MODO PRÁTICA</span>';
+    document.getElementById('answer').value = '';
+    document.getElementById('feedback').innerHTML = '';
+    document.getElementById('feedback').className = '';
+    document.getElementById('valA').innerText = valA;
+    document.getElementById('valB').innerText = valB;
+    showResultant = false;
+    cancelAnimationFrame(animId);
+    animT = 0; pulseT = 0;
+
+    setTalk(`Modo Prática! <em>${valA}</em> N e <em>${valB}</em> N. Calcule <strong>R = √(A² + B²)</strong>!`);
+    document.getElementById('sys-tag').innerText = 'MODO PRÁTICA · TREINO LIVRE';
+    drawScene(false);
+}
+
+/* ══ VOLTAR À CENTRAL ══ */
+function voltarAoCentral() {
+    if (window.parent !== window) {
+        window.parent.postMessage({ tipo: 'voltar_menu' }, '*');
+    } else {
+        window.location.href = 'index.html';
+    }
+}
+
+/* ══ INIT — detecta se já é mestre ══ */
+requestAnimationFrame(() => {
+    resizeCanvas();
+    if (localStorage.getItem('vphys_vetores_master') === 'true') {
+        ativarModoPratica();
+        setTalk(`Bem-vindo de volta, <strong>Mestre dos Vetores</strong>! Vetores: <em>${valA}</em> N e <em>${valB}</em> N. Calcule <strong>R</strong>!`);
+        document.getElementById('sys-tag').innerText = 'MODO PRÁTICA · MESTRE DOS VETORES';
+    } else {
+        initLevel();
+    }
+});
+</script>
+<!-- RELATÓRIO DE ENGENHARIA -->
+<div id="mission-report">
+    <h2 style="font-family:'Orbitron',monospace; color:#f1c40f; font-size:1rem; letter-spacing:3px;">★ RELATÓRIO DE ENGENHARIA ★</h2>
+    <p style="margin-top:10px; font-size:0.85rem;">Título Conquistado: <strong style="color:#f1c40f;">MESTRE DOS VETORES</strong></p>
+    <div class="formula-highlight">
+        CONCEITO: Força Resultante (R)<br>
+        R = √(A² + B²) — Teorema de Pitágoras<br>
+        <span style="font-size:0.8rem;opacity:0.7;">Vetores perpendiculares formam a hipotenusa do triângulo de forças</span>
+    </div>
+    <div style="text-align:left;font-size:0.82rem;line-height:1.6;color:rgba(212,245,226,0.8);margin-bottom:8px;">
+        <strong style="color:#00ffaa;">Aplicação Real:</strong> No içamento de cargas, as tensões nos cabos são vetores. Se a soma vetorial (resultante) não for perfeitamente vertical e oposta à gravidade, a carga oscila, podendo causar acidentes estruturais.
+    </div>
+    <div style="margin-top:22px;">
+        <button class="btn-report" onclick="ativarModoPratica()">↺ MODO PRÁTICA</button>
+        <button class="btn-report" style="border-color:#fff;color:#fff;" onclick="voltarAoCentral()">← VOLTAR À CENTRAL</button>
+    </div>
+</div>
+
+</body>
+</html>

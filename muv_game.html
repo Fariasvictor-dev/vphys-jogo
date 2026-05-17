@@ -1,0 +1,1197 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>V-PHYS | Mestre dos Radares (MUV)</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&family=Exo+2:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --neon: #00ff88;
+            --neon2: #00aaff;
+            --gold: #f1c40f;
+            --bg: #050c14;
+            --panel: #06101a;
+            --border: rgba(0,255,136,0.18);
+            --danger: #ff4444;
+            --accent: #ff6b35;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background: var(--bg);
+            color: #c8eedd;
+            font-family: 'Exo 2', sans-serif;
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+        }
+
+        body::after {
+            content:'';
+            position:fixed; inset:0;
+            background: repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,0,0,0.07) 3px,rgba(0,0,0,0.07) 4px);
+            pointer-events:none; z-index:999;
+        }
+
+        /* ══ VIEWPORT ══ */
+        .sim-viewport {
+            flex: 1;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            background: linear-gradient(180deg, #020810 0%, #040d1a 55%, #060f18 100%);
+        }
+
+        /* DR. VEKTOR */
+        .dialogue-area {
+            width: 100%;
+            display: flex;
+            align-items: flex-end;
+            gap: 12px;
+            padding: 12px 20px 0;
+            flex-shrink: 0;
+        }
+        .char-svg { flex-shrink: 0; filter: drop-shadow(0 0 14px rgba(0,255,136,0.35)); }
+        .bubble {
+            flex: 1;
+            background: linear-gradient(135deg,rgba(0,30,20,0.97),rgba(0,18,34,0.97));
+            border: 1.5px solid var(--neon);
+            border-radius: 10px 10px 10px 4px;
+            padding: 9px 14px;
+            position: relative;
+            box-shadow: 0 0 22px rgba(0,255,136,0.1), inset 0 0 25px rgba(0,255,136,0.03);
+        }
+        .bubble::after {
+            content:''; position:absolute; bottom:-11px; left:50px;
+            border-left:11px solid transparent; border-right:7px solid transparent;
+            border-top:11px solid var(--neon);
+        }
+        .bubble::before {
+            content:''; position:absolute; bottom:-8px; left:51px;
+            border-left:10px solid transparent; border-right:6px solid transparent;
+            border-top:9px solid #06101a; z-index:1;
+        }
+        .bubble-name {
+            font-family:'Orbitron',monospace; font-size:.5rem;
+            letter-spacing:3px; color:var(--neon); opacity:.6; margin-bottom:4px;
+        }
+        #dialogue-text { font-size:.82rem; line-height:1.6; color:#dff5ec; }
+        #dialogue-text strong { color:var(--neon); font-weight:600; }
+        #dialogue-text em { color:#7dd8ff; font-style:normal; }
+        #dialogue-text .gold { color:var(--gold); font-weight:600; }
+
+        /* ══ ESTRADA 3D ══ */
+        .road-wrap {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            padding: 6px 16px 10px;
+            min-height: 0; /* permite flex encolher */
+        }
+
+        #road3d {
+            width: 100%;
+            max-width: 900px;
+            flex: 1;           /* ocupa todo o espaço livre */
+            min-height: 160px; /* nunca menor que isso */
+            border-radius: 6px;
+            overflow: hidden;
+            border: 1px solid rgba(0,255,136,0.08);
+            box-shadow: 0 0 30px rgba(0,0,0,0.8);
+            position: relative;
+        }
+
+        #road3d canvas { display: block; width: 100% !important; height: 100% !important; }
+
+        /* ══ RESPONSIVE ══ */
+
+        /* Tablet landscape (≤1100px): sidebar mais estreita */
+        @media (max-width: 1100px) {
+            .controls { width: 280px; }
+            .dialogue-area { padding: 10px 14px 0; }
+            .char-svg { width: 60px !important; height: 90px !important; }
+            #dialogue-text { font-size: .76rem; }
+        }
+
+        /* Tablet portrait (≤768px): layout em coluna, sim-viewport em cima */
+        @media (max-width: 768px) {
+            body { flex-direction: column; height: 100dvh; }
+            .sim-viewport { flex: 1; min-height: 0; }
+            .controls {
+                width: 100%;
+                border-left: none;
+                border-top: 2px solid var(--border);
+                flex-direction: row;
+                flex-wrap: wrap;
+                max-height: 46vh;
+                overflow-y: auto;
+            }
+            .ctrl-header { width: 100%; border-bottom: 1px solid rgba(0,255,136,0.08); padding: 10px 16px 8px; }
+            .ctrl-body { flex-direction: row; flex-wrap: wrap; gap: 10px; padding: 10px 14px; }
+            .data-card { flex: 1; min-width: 180px; }
+            .formula-hint { flex: 1; min-width: 140px; }
+            .ctrl-footer { width: 100%; padding: 8px 16px 10px; }
+            #road3d { min-height: 140px; }
+            .dialogue-area { padding: 8px 12px 0; }
+            .char-svg { width: 52px !important; height: 78px !important; }
+        }
+
+        /* Mobile (≤480px): colapsa diálogo, remove pedal */
+        @media (max-width: 480px) {
+            .char-svg { display: none; }
+            .bubble { border-radius: 8px; font-size: .74rem; }
+            .dialogue-area { padding: 6px 10px 0; }
+            #road3d { min-height: 120px; }
+            .pedal-wrap { display: none; }
+            .controls { max-height: 52vh; }
+            .gauge-val { font-size: 1.2rem; }
+        }
+
+        /* ══ DASHBOARD ══ */
+        .dashboard {
+            display: flex;
+            gap: 0;
+            width: 100%;
+            max-width: 900px;
+            flex-shrink: 0;
+            background: rgba(0,0,0,0.4);
+            border: 1px solid rgba(0,255,136,0.12);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        .gauge {
+            flex: 1;
+            text-align: center;
+            padding: 8px 6px;
+            border-right: 1px solid rgba(0,255,136,0.08);
+        }
+        .gauge:last-child { border-right: none; }
+        .gauge-val {
+            font-family: 'Orbitron', monospace;
+            font-size: 1.4rem; font-weight: 900;
+            color: var(--neon);
+            display: block;
+            transition: color 0.3s;
+        }
+        .gauge small {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 0.38rem; letter-spacing: 2px;
+            color: rgba(200,238,221,0.3);
+        }
+
+        /* Pedal animado */
+        .pedal-wrap {
+            position: absolute;
+            bottom: 18px; right: 22px;
+            text-align: center; z-index: 20;
+        }
+        .pedal {
+            width: 38px; height: 70px;
+            background: linear-gradient(180deg,#2a2a2a,#1a1a1a);
+            border: 2px solid #444;
+            border-radius: 6px;
+            margin: 0 auto 4px;
+            transform-origin: bottom center;
+            transition: transform 0.5s cubic-bezier(0.17,0.67,0.83,0.67), border-color 0.3s;
+            position: relative;
+            overflow: hidden;
+        }
+        .pedal::after {
+            content: '';
+            position: absolute; inset: 0;
+            background: linear-gradient(180deg,rgba(0,255,136,0.08),transparent);
+            border-radius: 4px;
+            transition: opacity 0.3s;
+            opacity: 0;
+        }
+        .pedal.active::after { opacity: 1; }
+        .pedal-label {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 0.38rem; letter-spacing: 2px;
+            color: rgba(200,238,221,0.25);
+        }
+
+        /* ══ SIDEBAR CONTROLES ══ */
+        .controls {
+            width: 320px;
+            background: var(--panel);
+            border-left: 2px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .ctrl-header {
+            padding: 16px 20px 14px;
+            border-bottom: 1px solid rgba(0,255,136,0.08);
+        }
+        .badges { display: flex; gap: 8px; margin-bottom: 6px; }
+        .badge {
+            width: 10px; height: 10px; border-radius: 50%;
+            background: rgba(0,255,136,0.06);
+            border: 1.5px solid rgba(0,255,136,0.15);
+            transition: all 0.6s;
+        }
+        .badge.on {
+            background: var(--neon);
+            box-shadow: 0 0 10px var(--neon), 0 0 20px rgba(0,255,136,0.3);
+            border-color: var(--neon);
+        }
+        .badge-labels { display:flex; gap:8px; margin-bottom:6px; }
+        .badge-label { font-family:'Share Tech Mono',monospace; font-size:.38rem; letter-spacing:1.5px; color:rgba(200,238,221,.2); }
+        .ctrl-lvl { font-family:'Orbitron',monospace; font-size:.52rem; letter-spacing:2px; color:rgba(0,255,136,.5); }
+        .ctrl-lvl span { color:var(--neon); }
+
+        .ctrl-body { flex:1; overflow-y:auto; padding:16px 20px; display:flex; flex-direction:column; gap:14px; }
+        .ctrl-body::-webkit-scrollbar { width:3px; }
+        .ctrl-body::-webkit-scrollbar-thumb { background:rgba(0,255,136,0.2); border-radius:2px; }
+
+        /* Data cards */
+        .data-card {
+            background: rgba(0,255,136,0.03);
+            border: 1px solid rgba(0,255,136,0.1);
+            border-left: 3px solid var(--neon);
+            border-radius: 4px;
+            padding: 12px 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 7px;
+        }
+        .data-row {
+            display: flex; justify-content: space-between; align-items: center;
+            font-size: 0.72rem;
+        }
+        .data-row span { color: rgba(200,238,221,0.45); font-family:'Share Tech Mono',monospace; font-size:0.6rem; }
+        .data-row b { font-family:'Orbitron',monospace; font-size:0.72rem; color:#c8eedd; }
+        .data-row b.neon { color: var(--neon); }
+        .data-row b.gold { color: var(--gold); }
+        .data-row b.danger { color: var(--danger); }
+
+        /* Dica da fórmula */
+        .formula-hint {
+            background: rgba(241,196,15,0.04);
+            border: 1px solid rgba(241,196,15,0.15);
+            border-radius: 4px;
+            padding: 10px 12px;
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 0.7rem;
+            color: rgba(241,196,15,0.6);
+            text-align: center;
+            line-height: 1.6;
+        }
+
+        /* Input */
+        .input-label {
+            font-family:'Share Tech Mono',monospace; font-size:0.5rem;
+            letter-spacing:2px; color:rgba(200,238,221,0.3); margin-bottom:5px;
+        }
+        input[type=number] {
+            width: 100%;
+            background: rgba(0,0,0,0.5);
+            border: 1.5px solid rgba(0,255,136,0.25);
+            color: var(--neon);
+            padding: 11px 14px;
+            font-family: 'Orbitron', monospace;
+            font-size: 1rem;
+            text-align: center;
+            border-radius: 6px;
+            outline: none;
+            transition: .2s;
+        }
+        input[type=number]:focus { border-color:var(--neon); box-shadow:0 0 14px rgba(0,255,136,.18); }
+        input[type=number]::placeholder { color:rgba(0,255,136,.2); font-size:.65rem; }
+
+        /* Botão */
+        button#btn-arrancar {
+            width: 100%;
+            background: linear-gradient(135deg,rgba(0,255,136,.13),rgba(0,170,255,.07));
+            border: 1.5px solid var(--neon);
+            color: var(--neon);
+            padding: 12px;
+            font-family: 'Orbitron', monospace;
+            font-size: .62rem; font-weight: 700; letter-spacing: 2px;
+            cursor: pointer; border-radius: 6px; transition: .2s;
+        }
+        button#btn-arrancar:hover { box-shadow:0 0 18px rgba(0,255,136,.3); transform:translateY(-1px); }
+        button#btn-arrancar:disabled { opacity:0.4; cursor:not-allowed; transform:none; }
+
+        /* Feedback */
+        #feedback {
+            font-family:'Share Tech Mono',monospace;
+            font-size:.68rem; letter-spacing:1px;
+            min-height:28px; border-radius:5px;
+            padding:6px 10px; text-align:center;
+            display:flex; align-items:center; justify-content:center;
+            transition:.3s;
+        }
+        .fb-ok  { background:rgba(0,255,136,.07); border:1px solid rgba(0,255,136,.2); color:var(--neon); }
+        .fb-err { background:rgba(255,68,68,.07);  border:1px solid rgba(255,68,68,.2);  color:var(--danger); }
+        .fb-warn { background:rgba(241,196,15,.07); border:1px solid rgba(241,196,15,.2); color:var(--gold); }
+
+        /* Rodapé XP */
+        .ctrl-footer { padding:12px 20px 16px; border-top:1px solid rgba(0,255,136,.08); }
+        .xp-lbl { font-size:.46rem; letter-spacing:3px; color:rgba(200,238,221,.28); font-family:'Share Tech Mono',monospace; margin-bottom:5px; }
+        .xp-track { height:5px; background:rgba(0,255,136,.05); border:1px solid rgba(0,255,136,.12); border-radius:3px; overflow:hidden; }
+        #xp-bar { height:100%; width:0%; background:linear-gradient(90deg,var(--neon),var(--neon2)); border-radius:3px; transition:width 1.2s cubic-bezier(.4,0,.2,1); }
+        .sys-tag { font-family:'Share Tech Mono',monospace; font-size:.44rem; color:rgba(0,255,136,.18); margin-top:7px; letter-spacing:1px; }
+
+        /* ══ ANIMAÇÕES ══ */
+        @keyframes fadeInWin {
+            from { opacity:0; transform:translate(-50%,-48%) scale(.96); }
+            to   { opacity:1; transform:translate(-50%,-50%) scale(1); }
+        }
+        @keyframes speedPulse {
+            0%,100% { text-shadow: 0 0 8px currentColor; }
+            50%      { text-shadow: 0 0 22px currentColor, 0 0 40px currentColor; }
+        }
+        .speeding { animation: speedPulse 0.4s ease infinite; color: var(--danger) !important; }
+
+        /* ══ RELATÓRIO ══ */
+        #mission-report {
+            display: none;
+            position: fixed;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            width: 85%; max-width: 600px;
+            background: #06101a;
+            border: 2px solid var(--gold);
+            padding: 30px;
+            z-index: 9999;
+            box-shadow: 0 0 50px #000, 0 0 20px rgba(241,196,15,0.3);
+            text-align: center;
+            color: #d4f5e2;
+            border-radius: 8px;
+            animation: fadeInWin .4s ease;
+        }
+        .formula-highlight {
+            background: rgba(241,196,15,0.1);
+            border: 1px dashed var(--gold);
+            padding: 15px; margin: 18px 0;
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 1rem; color: var(--gold);
+            line-height: 1.8; border-radius: 4px;
+        }
+        .btn-report {
+            background: transparent;
+            border: 1px solid var(--neon);
+            color: var(--neon);
+            padding: 10px 20px;
+            cursor: pointer;
+            font-family: 'Orbitron', monospace;
+            font-size: 0.55rem; letter-spacing: 1.5px;
+            margin: 8px 6px 0; border-radius: 4px; transition: 0.25s;
+        }
+        .btn-report:hover { background: var(--neon); color: #000; }
+    </style>
+</head>
+<body>
+
+<!-- ══ VIEWPORT ══ -->
+<div class="sim-viewport">
+
+    <!-- Dr. Vektor -->
+    <div class="dialogue-area">
+        <svg class="char-svg" viewBox="0 0 80 120" width="72" height="108" xmlns="http://www.w3.org/2000/svg">
+            <ellipse cx="40" cy="116" rx="26" ry="4" fill="rgba(0,255,136,0.15)"/>
+            <rect x="24" y="82" width="11" height="32" rx="5" fill="#0b2820"/>
+            <rect x="45" y="82" width="11" height="32" rx="5" fill="#0b2820"/>
+            <rect x="20" y="108" width="16" height="8" rx="4" fill="#051a10"/>
+            <rect x="44" y="108" width="16" height="8" rx="4" fill="#051a10"/>
+            <rect x="17" y="46" width="46" height="40" rx="9" fill="#0a3424"/>
+            <rect x="35" y="50" width="2" height="30" rx="1" fill="rgba(0,255,136,0.25)"/>
+            <rect x="7" y="48" width="12" height="28" rx="6" fill="#0a3424"/>
+            <rect x="61" y="48" width="12" height="28" rx="6" fill="#0a3424"/>
+            <ellipse cx="13" cy="77" rx="7" ry="6" fill="#051a10"/>
+            <ellipse cx="67" cy="77" rx="7" ry="6" fill="#051a10"/>
+            <rect x="33" y="35" width="14" height="13" rx="6" fill="#c89a72"/>
+            <ellipse cx="40" cy="28" rx="20" ry="22" fill="#c89a72"/>
+            <rect x="21" y="20" width="38" height="15" rx="7" fill="rgba(0,20,14,0.88)" stroke="rgba(0,255,136,0.6)" stroke-width="1.4"/>
+            <rect x="24" y="23" width="13" height="9" rx="4" fill="rgba(0,200,150,0.28)"/>
+            <rect x="43" y="23" width="13" height="9" rx="4" fill="rgba(0,150,255,0.28)"/>
+            <rect x="38" y="24" width="4" height="7" rx="2" fill="rgba(0,255,136,0.35)"/>
+            <path d="M21 26 Q19 8 40 6 Q61 8 59 26" fill="#180800"/>
+            <rect x="17" y="46" width="46" height="3" rx="1" fill="rgba(0,255,136,0.12)"/>
+            <rect x="33" y="46" width="14" height="7" rx="3" fill="rgba(0,255,136,0.15)" stroke="rgba(0,255,136,0.4)" stroke-width="0.8"/>
+        </svg>
+        <div class="bubble">
+            <div class="bubble-name">DR. VEKTOR — SISTEMA V-PHYS</div>
+            <div id="dialogue-text">Inicializando sistema...</div>
+        </div>
+    </div>
+
+    <!-- Área da estrada 3D -->
+    <div class="road-wrap">
+
+        <div id="road3d">
+            <!-- Three.js renderiza aqui -->
+            <div id="radar-overlay" style="
+                position:absolute; right:14px; top:50%; transform:translateY(-50%);
+                z-index:10; text-align:center; pointer-events:none;
+            ">
+                <div style="font-size:1.1rem; filter:drop-shadow(0 0 8px rgba(255,68,68,0.8));">📡</div>
+                <div id="radar-limit" style="
+                    font-family:'Orbitron',monospace; font-size:0.4rem;
+                    color:var(--danger); letter-spacing:1px;
+                    background:rgba(255,68,68,0.12); border:1px solid rgba(255,68,68,0.4);
+                    padding:2px 6px; border-radius:2px; margin-top:3px; white-space:nowrap;
+                ">— km/h</div>
+            </div>
+        </div>
+
+        <!-- Dashboard -->
+        <div class="dashboard" style="max-width:900px">
+            <div class="gauge">
+                <span class="gauge-val" id="v-meter">0</span>
+                <small>VELOCIDADE (km/h)</small>
+            </div>
+            <div class="gauge">
+                <span class="gauge-val" id="t-meter" style="color:var(--gold)">0.0s</span>
+                <small>TEMPO</small>
+            </div>
+            <div class="gauge">
+                <span class="gauge-val" id="a-meter" style="color:var(--neon2)">—</span>
+                <small>ACEL. (km/h/s)</small>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Pedal -->
+    <div class="pedal-wrap">
+        <div class="pedal" id="pedal-ui"></div>
+        <div class="pedal-label">ACELERADOR</div>
+    </div>
+
+</div>
+
+<!-- ══ CONTROLES ══ -->
+<div class="controls">
+    <div class="ctrl-header">
+        <div class="badges">
+            <div class="badge" id="b1"></div>
+            <div class="badge" id="b2"></div>
+            <div class="badge" id="b3"></div>
+        </div>
+        <div class="badge-labels">
+            <span class="badge-label">RECRUTA</span>
+            <span class="badge-label">PILOTO</span>
+            <span class="badge-label">RADAR OK</span>
+        </div>
+        <div class="ctrl-lvl" id="lvl-txt">NÍVEL: <span>1 — RECRUTA</span></div>
+    </div>
+
+    <div class="ctrl-body">
+
+        <div class="data-card">
+            <div class="data-row">
+                <span>V. INICIAL (v₀)</span>
+                <b id="v0-txt" class="neon">0 km/h</b>
+            </div>
+            <div class="data-row">
+                <span>V. ALVO (v)</span>
+                <b id="target-txt" class="neon">— km/h</b>
+            </div>
+            <div class="data-row">
+                <span>TEMPO (Δt)</span>
+                <b id="time-txt" class="gold">—s</b>
+            </div>
+            <div class="data-row">
+                <span>LIMITE RADAR</span>
+                <b id="limit-txt" class="danger">— km/h</b>
+            </div>
+        </div>
+
+        <div class="formula-hint">
+            v = v₀ + a · Δt<br>
+            <span style="font-size:0.55rem;opacity:0.6;">isolando a: &nbsp; a = (v − v₀) / Δt</span>
+        </div>
+
+        <div>
+            <div class="input-label">ACELERAÇÃO (km/h por segundo):</div>
+            <input type="number" id="acc-input" step="0.1" placeholder="calcule e insira a">
+        </div>
+
+        <button id="btn-arrancar" onclick="iniciarTeste()">▶ ARRANCAR</button>
+
+        <div id="feedback"></div>
+
+    </div>
+
+    <div class="ctrl-footer">
+        <div class="xp-lbl">PROGRESSO DA MISSÃO</div>
+        <div class="xp-track"><div id="xp-bar"></div></div>
+        <div class="sys-tag" id="sys-tag">SISTEMA V-PHYS v2.0 · MÓDULO MUV</div>
+    </div>
+</div>
+
+<!-- ══ RELATÓRIO ══ -->
+<div id="mission-report">
+    <h2 style="font-family:'Orbitron',monospace; color:var(--gold); font-size:1rem; letter-spacing:3px;">★ RELATÓRIO DE MISSÃO ★</h2>
+    <p style="margin-top:10px; font-size:0.85rem;">Título Conquistado: <strong style="color:var(--gold);">MESTRE DOS RADARES</strong></p>
+    <div class="formula-highlight">
+        MUV — Movimento Uniformemente Variado<br>
+        v = v₀ + a · Δt<br>
+        <span style="font-size:0.8rem;opacity:0.7;">a = (v − v₀) / Δt &nbsp;→&nbsp; aceleração constante</span>
+    </div>
+    <div style="text-align:left;font-size:0.82rem;line-height:1.6;color:rgba(212,245,226,0.8);margin-bottom:8px;">
+        <strong style="color:var(--neon);">Aplicação Real:</strong> Radares de velocidade média medem o tempo que um veículo leva entre dois pontos. A fórmula MUV é usada para calcular se a aceleração do veículo ultrapassou o limite em algum trecho monitorado.
+    </div>
+    <div style="margin-top:22px;">
+        <button class="btn-report" onclick="ativarModoPratica()">↺ MODO PRÁTICA</button>
+        <button class="btn-report" style="border-color:#fff;color:#fff;" onclick="voltarAoCentral()">← VOLTAR À CENTRAL</button>
+    </div>
+</div>
+
+<script>
+/* ══ NÍVEIS DA CAMPANHA ══ */
+const NIVEIS_CAMPANHA = [
+    {
+        v0: 0, target: 80, t: 10, limit: 90,
+        labelLvl: '1 — RECRUTA',
+        badge: 'b1',
+        msg: `Recruta! Você está na rampa de entrada da rodovia. Acelere do <strong>repouso até 80 km/h</strong> em exatos <strong>10 segundos</strong>. Calcule a aceleração necessária!`,
+    },
+    {
+        v0: 40, target: 100, t: 5, limit: 110,
+        labelLvl: '2 — PILOTO',
+        badge: 'b2',
+        msg: `Ultrapassagem controlada! Você já está a <strong>40 km/h</strong>. Precisa atingir <strong>100 km/h</strong> em <strong>5 segundos</strong> sem acionar o radar. Calcule <em>a</em>!`,
+    },
+    {
+        v0: 0, target: 60, t: 12, limit: 65,
+        labelLvl: '3 — RADAR OK',
+        badge: 'b3',
+        msg: `<strong>Zona Urbana monitorada!</strong> Saia do repouso e chegue a <strong>60 km/h</strong> em <strong>12 segundos</strong> sem estouro. Uma aceleração brusca aciona o radar!`,
+    },
+];
+
+/* ══ DIÁLOGOS ══ */
+const talks = {
+    ok:  `<span class="gold">✓ VELOCIDADE SINCRONIZADA!</span> Seu cálculo foi preciso. O radar registrou conformidade. Avançando ao próximo setor!`,
+    err_alta: `<span style="color:var(--danger)">⚠ MULTA!</span> Sua aceleração excedeu o limite — o radar te capturou. Revise: <strong>a = (v − v₀) / Δt</strong>.`,
+    err_baixa: `<span style="color:var(--gold)">⚠ INFRAÇÃO!</span> Velocidade abaixo da mínima — impedindo o fluxo. Tente uma aceleração maior.`,
+    win: `<span class="gold">★ MESTRE DOS RADARES!</span> Você dominou o <strong>MUV</strong> com precisão de engenheiro. O sistema registra sua conquista!`,
+    pratica: `<strong>Modo Prática</strong> ativo! Valores aleatórios gerados. Use <em>a = (v − v₀) / Δt</em> para calcular a aceleração correta!`,
+    volta: `Bem-vindo de volta, <strong>Mestre dos Radares</strong>! Novos desafios aleatórios te esperam. Prove que ainda domina o <strong>MUV</strong>!`,
+};
+
+let lvl = 0;
+let animando = false;
+let modoPratica = false;
+let nivelAtual = null;
+
+/* ══ THREE.JS — CARRO 3D ══ */
+const script3d = document.createElement('script');
+script3d.src = 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js';
+script3d.onload = init3D;
+document.head.appendChild(script3d);
+
+let renderer3d, scene3d, camera3d, carMesh, radarMesh;
+let carX = 0;          // posição Z do carro na pista (0 = início, 1 = radar, >1 = passou)
+const RADAR_Z = 18;    // posição Z do poste de radar na cena
+const START_Z = -14;   // posição inicial do carro
+let animCar = false;
+let carSpeed  = 0;     // velocidade atual em unidades/s
+let carAccel  = 0;     // aceleração em unidades/s²
+let carTarget = 0;     // velocidade alvo em unidades/s
+let carTime   = 0;     // tempo da animação
+let carDurMax = 0;     // duração do nível
+let carV0     = 0;     // velocidade inicial
+let lastRAF   = null;
+let radarFlash = false;
+
+function init3D() {
+    const container = document.getElementById('road3d');
+    const W = container.clientWidth  || 700;
+    const H = container.clientHeight || 200;
+
+    renderer3d = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+    renderer3d.setSize(W, H);
+    renderer3d.setPixelRatio(window.devicePixelRatio);
+    renderer3d.shadowMap.enabled = true;
+    renderer3d.setClearColor(0x030a0f);
+    container.insertBefore(renderer3d.domElement, container.firstChild);
+
+    scene3d = new THREE.Scene();
+    scene3d.fog = new THREE.Fog(0x030a0f, 30, 70);
+
+    // Câmera em perspectiva lateral-baixa (vista cinematográfica)
+    camera3d = new THREE.PerspectiveCamera(42, W / H, 0.1, 200);
+    camera3d.position.set(-14, 4.5, 2);
+    camera3d.lookAt(8, 0, 1.5);
+
+    // Luz ambiente
+    scene3d.add(new THREE.AmbientLight(0x223344, 1.2));
+
+    // Luz direcional (sol noturno)
+    const dirLight = new THREE.DirectionalLight(0x4488ff, 0.8);
+    dirLight.position.set(-10, 20, 5);
+    dirLight.castShadow = true;
+    scene3d.add(dirLight);
+
+    // Luz neón verde sob o carro
+    const carLight = new THREE.PointLight(0x00ff88, 1.5, 6);
+    carLight.position.set(0, 0.3, 2);
+    scene3d.add(carLight);
+    window._carLight = carLight;
+
+    // Luz vermelha do radar
+    const radarLight = new THREE.PointLight(0xff2200, 0.0, 8);
+    radarLight.position.set(RADAR_Z, 2, 0);
+    scene3d.add(radarLight);
+    window._radarLight = radarLight;
+
+    // ── PISTA ──
+    buildRoad();
+
+    // ── CARRO 3D ──
+    carMesh = buildCar();
+    carMesh.position.set(START_Z, 0.55, 0);
+    scene3d.add(carMesh);
+
+    // ── POSTE DE RADAR ──
+    radarMesh = buildRadar();
+    radarMesh.position.set(RADAR_Z, 0, 1.5);
+    scene3d.add(radarMesh);
+
+    // ── CÉREBRO ──
+    buildSky();
+
+    // Loop de renderização
+    (function loop(now) {
+        lastRAF = requestAnimationFrame(loop);
+        const dt = Math.min((now - (loop._last || now)) / 1000, 0.05);
+        loop._last = now;
+
+        if (animCar) {
+            carTime += dt;
+            // Posição = S0 + v0*t + 0.5*a*t²  (proporcional às unidades da cena)
+            const rawZ = START_Z + carV0 * carTime + 0.5 * carAccel * carTime * carTime;
+            carMesh.position.x = rawZ;
+            window._carLight.position.x = rawZ;
+
+            // Inclinação leve para frente na aceleração
+            carMesh.rotation.z = Math.min(carAccel * 0.018, 0.06);
+
+            // Para ao passar o radar + margem
+            if (rawZ >= RADAR_Z + 6) {
+                animCar = false;
+                onCarFinished();
+            }
+        } else {
+            carMesh.rotation.z = THREE.MathUtils.lerp(carMesh.rotation.z, 0, 0.08);
+        }
+
+        // Flash do radar quando speeding
+        if (radarFlash) {
+            window._radarLight.intensity = 2 + Math.sin(Date.now() * 0.015) * 1.5;
+        } else {
+            window._radarLight.intensity = THREE.MathUtils.lerp(window._radarLight.intensity, 0, 0.06);
+        }
+
+        renderer3d.render(scene3d, camera3d);
+    })(0);
+
+    window.addEventListener('resize', () => {
+        const W2 = container.clientWidth, H2 = container.clientHeight;
+        renderer3d.setSize(W2, H2);
+        camera3d.aspect = W2 / H2;
+        camera3d.updateProjectionMatrix();
+    });
+}
+
+function buildRoad() {
+    // Asfalto principal
+    const roadGeo = new THREE.BoxGeometry(60, 0.18, 5);
+    const roadMat = new THREE.MeshLambertMaterial({ color: 0x0f1410 });
+    const road = new THREE.Mesh(roadGeo, roadMat);
+    road.position.set(15, -0.09, 0);
+    road.receiveShadow = true;
+    scene3d.add(road);
+
+    // Faixa central tracejada (amarela) — ESTÁTICA
+    for (let i = -20; i < 40; i += 4) {
+        const lineGeo = new THREE.BoxGeometry(2.2, 0.02, 0.12);
+        const lineMat = new THREE.MeshBasicMaterial({ color: 0xf1c40f, transparent: true, opacity: 0.55 });
+        const line = new THREE.Mesh(lineGeo, lineMat);
+        line.position.set(i, 0.1, 0);
+        scene3d.add(line);
+    }
+
+    // Bordas laterais neon
+    const edgeMat = new THREE.MeshBasicMaterial({ color: 0x00ff88, transparent: true, opacity: 0.25 });
+    [-2.55, 2.55].forEach(z => {
+        const edge = new THREE.Mesh(new THREE.BoxGeometry(60, 0.04, 0.08), edgeMat);
+        edge.position.set(15, 0.11, z);
+        scene3d.add(edge);
+    });
+
+    // Chão além da pista
+    const groundGeo = new THREE.BoxGeometry(80, 0.1, 30);
+    const groundMat = new THREE.MeshLambertMaterial({ color: 0x040a06 });
+    const ground = new THREE.Mesh(groundGeo, groundMat);
+    ground.position.set(10, -0.25, 0);
+    scene3d.add(ground);
+
+    // Postes de luz laterais (estáticos)
+    for (let px = -10; px < 35; px += 10) {
+        const poleGeo = new THREE.CylinderGeometry(0.06, 0.08, 4, 6);
+        const poleMat = new THREE.MeshLambertMaterial({ color: 0x223322 });
+        const pole = new THREE.Mesh(poleGeo, poleMat);
+        pole.position.set(px, 2, -3.5);
+        scene3d.add(pole);
+
+        const lampGeo = new THREE.SphereGeometry(0.15, 8, 8);
+        const lampMat = new THREE.MeshBasicMaterial({ color: 0x00ff88, transparent: true, opacity: 0.6 });
+        const lamp = new THREE.Mesh(lampGeo, lampMat);
+        lamp.position.set(px, 4.1, -3.5);
+        scene3d.add(lamp);
+    }
+}
+
+function buildCar() {
+    const group = new THREE.Group();
+
+    // Carroceria principal
+    const bodyGeo = new THREE.BoxGeometry(3.2, 0.6, 1.6);
+    const bodyMat = new THREE.MeshLambertMaterial({ color: 0x00cc66 });
+    const body = new THREE.Mesh(bodyGeo, bodyMat);
+    body.position.y = 0.3;
+    body.castShadow = true;
+    group.add(body);
+
+    // Capô/cabine (forma trapezoidal via BoxGeometry deslocada)
+    const cabinGeo = new THREE.BoxGeometry(1.5, 0.5, 1.3);
+    const cabinMat = new THREE.MeshLambertMaterial({ color: 0x009944 });
+    const cabin = new THREE.Mesh(cabinGeo, cabinMat);
+    cabin.position.set(-0.1, 0.8, 0);
+    group.add(cabin);
+
+    // Para-brisa (azul translúcido)
+    const windGeo = new THREE.BoxGeometry(0.08, 0.42, 1.1);
+    const windMat = new THREE.MeshLambertMaterial({ color: 0x4488cc, transparent: true, opacity: 0.6 });
+    const windFront = new THREE.Mesh(windGeo, windMat);
+    windFront.position.set(0.65, 0.78, 0);
+    windFront.rotation.z = -0.35;
+    group.add(windFront);
+
+    // Teto com detalhe neon
+    const roofGeo = new THREE.BoxGeometry(1.3, 0.08, 1.28);
+    const roofMat = new THREE.MeshBasicMaterial({ color: 0x00ff88, transparent: true, opacity: 0.3 });
+    const roof = new THREE.Mesh(roofGeo, roofMat);
+    roof.position.set(-0.1, 1.06, 0);
+    group.add(roof);
+
+    // Rodas (4x)
+    const wheelGeo = new THREE.CylinderGeometry(0.32, 0.32, 0.22, 12);
+    const wheelMat = new THREE.MeshLambertMaterial({ color: 0x111111 });
+    const rimMat   = new THREE.MeshBasicMaterial({ color: 0x888888 });
+    [
+        [1.1, -3.5], [1.1, 3.5],  // dianteiras (x, z offset nos grupos)
+        [-1.0, -3.5], [-1.0, 3.5] // traseiras
+    ].forEach(([xi, _]) => {}); // calculado abaixo
+
+    const wheelPos = [
+        { x: 1.1,  z: -0.75 },
+        { x: 1.1,  z:  0.75 },
+        { x: -1.0, z: -0.75 },
+        { x: -1.0, z:  0.75 },
+    ];
+    wheelPos.forEach(wp => {
+        const wheel = new THREE.Mesh(wheelGeo, wheelMat);
+        wheel.rotation.x = Math.PI / 2;
+        wheel.position.set(wp.x, 0.0, wp.z);
+        group.add(wheel);
+
+        const rim = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.15, 0.15, 0.23, 6),
+            rimMat
+        );
+        rim.rotation.x = Math.PI / 2;
+        rim.position.set(wp.x, 0.0, wp.z);
+        group.add(rim);
+    });
+
+    // Faróis dianteiros
+    const headMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+    [-0.5, 0.5].forEach(zz => {
+        const head = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.15, 0.25), headMat);
+        head.position.set(1.61, 0.3, zz);
+        group.add(head);
+    });
+
+    // Lanternas traseiras (vermelho)
+    const tailMat = new THREE.MeshBasicMaterial({ color: 0xff2200 });
+    [-0.5, 0.5].forEach(zz => {
+        const tail = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.12, 0.22), tailMat);
+        tail.position.set(-1.61, 0.3, zz);
+        group.add(tail);
+    });
+
+    // Subwoofer neon no chão
+    const neonBot = new THREE.Mesh(
+        new THREE.BoxGeometry(2.6, 0.04, 1.55),
+        new THREE.MeshBasicMaterial({ color: 0x00ff88, transparent: true, opacity: 0.4 })
+    );
+    neonBot.position.y = -0.06;
+    group.add(neonBot);
+
+    return group;
+}
+
+function buildRadar() {
+    const group = new THREE.Group();
+
+    // Poste
+    const poleGeo = new THREE.CylinderGeometry(0.07, 0.1, 5, 8);
+    const poleMat = new THREE.MeshLambertMaterial({ color: 0x333333 });
+    const pole = new THREE.Mesh(poleGeo, poleMat);
+    pole.position.y = 2.5;
+    group.add(pole);
+
+    // Cabeça do radar
+    const headGeo = new THREE.BoxGeometry(0.5, 0.5, 0.3);
+    const headMat = new THREE.MeshLambertMaterial({ color: 0x222222 });
+    const head = new THREE.Mesh(headGeo, headMat);
+    head.position.set(0, 5.2, 0);
+    group.add(head);
+
+    // Lente (vermelha)
+    const lensMat = new THREE.MeshBasicMaterial({ color: 0xff2200, transparent: true, opacity: 0.8 });
+    const lens = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 0.1, 12), lensMat);
+    lens.rotation.x = Math.PI / 2;
+    lens.position.set(0, 5.2, -0.2);
+    group.add(lens);
+
+    // Barra horizontal de suporte
+    const barGeo = new THREE.BoxGeometry(0.08, 0.08, 3.2);
+    const barMat = new THREE.MeshLambertMaterial({ color: 0x2a2a2a });
+    const bar = new THREE.Mesh(barGeo, barMat);
+    bar.position.set(0, 5, -1.6);
+    group.add(bar);
+
+    return group;
+}
+
+function buildSky() {
+    // Grade de fundo no estilo V-PHYS
+    const gridHelper = new THREE.GridHelper(80, 30, 0x001a0a, 0x001a0a);
+    gridHelper.position.set(10, -0.3, 0);
+    scene3d.add(gridHelper);
+}
+
+function resetCarPosition() {
+    if (carMesh) {
+        carMesh.position.x = START_Z;
+        carMesh.rotation.z = 0;
+    }
+    radarFlash = false;
+}
+
+/* Callback chamado quando carro passa do radar */
+let onCarFinished = () => {};
+
+/* ══ NÍVEIS DA CAMPANHA ══ */
+function setTalk(html) {
+    const el = document.getElementById('dialogue-text');
+    el.style.transition = 'opacity .2s';
+    el.style.opacity = 0;
+    setTimeout(() => { el.innerHTML = html; el.style.opacity = 1; }, 200);
+}
+
+/* ══ CARREGAR NÍVEL ══ */
+function carregarNivel(n) {
+    nivelAtual = n;
+    document.getElementById('v0-txt').innerText     = n.v0 + ' km/h';
+    document.getElementById('target-txt').innerText = n.target + ' km/h';
+    document.getElementById('time-txt').innerText   = n.t + 's';
+    document.getElementById('limit-txt').innerText  = n.limit + ' km/h';
+    document.getElementById('radar-limit').innerText = n.limit + ' km/h';
+    document.getElementById('v-meter').innerText    = n.v0;
+    document.getElementById('a-meter').innerText    = '—';
+    document.getElementById('acc-input').value      = '';
+    document.getElementById('feedback').innerHTML   = '';
+    document.getElementById('feedback').className   = '';
+    document.getElementById('btn-arrancar').disabled = false;
+    document.getElementById('pedal-ui').style.transform = 'rotateX(0deg)';
+    document.getElementById('pedal-ui').classList.remove('active');
+    document.getElementById('t-meter').innerText   = '0.0s';
+    document.getElementById('v-meter').classList.remove('speeding');
+
+    resetCarPosition();
+
+    if (n.labelLvl) {
+        document.getElementById('lvl-txt').innerHTML = `NÍVEL: <span>${n.labelLvl}</span>`;
+    }
+    setTalk(n.msg);
+}
+
+/* ══ INICIAR TESTE ══ */
+function iniciarTeste() {
+    if (animando) return;
+    const n = nivelAtual;
+    const aUser = parseFloat(document.getElementById('acc-input').value);
+    if (isNaN(aUser)) return;
+
+    animando = true;
+    document.getElementById('btn-arrancar').disabled = true;
+    resetCarPosition();
+
+    // Pedal visual
+    const pedalDeg = Math.min(Math.abs(aUser) * 4, 40);
+    document.getElementById('pedal-ui').style.transform = `rotateX(${pedalDeg}deg)`;
+    document.getElementById('pedal-ui').classList.add('active');
+    document.getElementById('a-meter').innerText = aUser.toFixed(1);
+
+    // Converte km/h para unidades da cena (fator de escala visual)
+    const SCALE = 0.06;
+    carV0    = n.v0    * SCALE;
+    carAccel = aUser   * SCALE;
+    carTarget = n.target * SCALE;
+    carDurMax = n.t;
+    carTime  = 0;
+    animCar  = true;
+
+    // Velocidade final calculada
+    const vFinal = n.v0 + aUser * n.t;
+
+    // Flash radar se vai estourar
+    if (vFinal > n.limit + 0.5) {
+        radarFlash = true;
+    }
+
+    bipSucesso();
+
+    // Atualizar HUD em tempo real com setInterval independente
+    let tHUD = 0;
+    const hudInterval = setInterval(() => {
+        tHUD = parseFloat((tHUD + 0.1).toFixed(1));
+        const vHUD = Math.max(0, Math.round(n.v0 + aUser * tHUD));
+        document.getElementById('v-meter').innerText = vHUD;
+        document.getElementById('t-meter').innerText = tHUD.toFixed(1) + 's';
+
+        const vm = document.getElementById('v-meter');
+        if (vHUD > n.limit) vm.classList.add('speeding');
+        else vm.classList.remove('speeding');
+
+        if (tHUD >= n.t) clearInterval(hudInterval);
+    }, 100);
+
+    // Quando o carro passar do radar, finalizar
+    onCarFinished = () => {
+        animando = false;
+        document.getElementById('pedal-ui').style.transform = 'rotateX(0deg)';
+        document.getElementById('pedal-ui').classList.remove('active');
+        document.getElementById('v-meter').classList.remove('speeding');
+        finalizarTeste(aUser);
+    };
+}
+
+/* ══ FINALIZAR TESTE ══ */
+function finalizarTeste(aUser) {
+    const n = nivelAtual;
+    const vFinal = n.v0 + aUser * n.t;
+    const fb = document.getElementById('feedback');
+
+    animando = false;
+    document.getElementById('pedal-ui').style.transform = 'rotateX(0deg)';
+    document.getElementById('pedal-ui').classList.remove('active');
+    document.querySelectorAll('.road-line').forEach(s => s.style.animationPlayState = 'paused');
+    document.getElementById('v-meter').classList.remove('speeding');
+
+    if (vFinal > n.limit + 0.5) {
+        // MULTA — passou do limite
+        bipErro();
+        fb.innerHTML = `<span style="color:var(--danger)">⚠ MULTA! Radar acionado — ${Math.round(vFinal)} km/h > ${n.limit} km/h. Tente de novo.</span>`;
+        fb.className = 'fb-err';
+        setTalk(talks.err_alta);
+        document.getElementById('btn-arrancar').disabled = false;
+
+    } else if (Math.abs(vFinal - n.target) <= 2) {
+        // CORRETO
+        bipSucesso();
+        fb.innerHTML = `<span style="color:var(--neon)">✓ PERFEITO! ${Math.round(vFinal)} km/h atingidos com precisão!</span>`;
+        fb.className = 'fb-ok';
+        setTalk(talks.ok);
+        document.getElementById('xp-bar').style.width = ((lvl + 1) / NIVEIS_CAMPANHA.length * 100) + '%';
+        if (n.badge) document.getElementById(n.badge).classList.add('on');
+
+        setTimeout(() => {
+            lvl++;
+            if (!modoPratica && lvl < NIVEIS_CAMPANHA.length) {
+                carregarNivel(NIVEIS_CAMPANHA[lvl]);
+            } else {
+                vitoria();
+            }
+        }, 2200);
+
+    } else {
+        // Abaixo do alvo
+        bipErro();
+        fb.innerHTML = `<span style="color:var(--gold)">⚠ Velocidade insuficiente: ${Math.round(vFinal)} km/h (esperado: ${n.target} km/h). Recalcule!</span>`;
+        fb.className = 'fb-warn';
+        setTalk(talks.err_baixa);
+        document.getElementById('btn-arrancar').disabled = false;
+    }
+}
+
+/* ══ VITÓRIA ══ */
+function vitoria() {
+    document.getElementById('xp-bar').style.width = '100%';
+    ['b1','b2','b3'].forEach(id => document.getElementById(id).classList.add('on'));
+    document.getElementById('sys-tag').innerHTML = '<span style="color:var(--gold);letter-spacing:2px;">★ RANK: MESTRE DOS RADARES · MISSÃO COMPLETA</span>';
+
+    const jaConquistado = localStorage.getItem('vphys_muv_master') === 'true';
+
+    if (!jaConquistado) {
+        bipVitoria();
+        setTalk(talks.win);
+        localStorage.setItem('vphys_muv_done',   'true');
+        localStorage.setItem('vphys_muv_master',  'true');
+        try { window.parent.postMessage({ tipo: 'conquista_muv' }, '*'); } catch(e) {}
+
+        document.getElementById('feedback').innerHTML = `
+            <div style="display:flex;flex-direction:column;align-items:center;gap:5px;padding:8px 0;animation:fadeInWin .5s ease;">
+                <div style="font-family:'Orbitron',monospace;font-size:.7rem;font-weight:900;color:var(--gold);letter-spacing:3px;text-shadow:0 0 18px rgba(241,196,15,0.8);">★ CONQUISTA DESBLOQUEADA ★</div>
+                <div style="font-family:'Orbitron',monospace;font-size:.55rem;color:#fff;letter-spacing:2px;background:linear-gradient(135deg,rgba(241,196,15,0.12),rgba(241,196,15,0.04));border:1px solid rgba(241,196,15,0.4);padding:4px 14px;border-radius:3px;">MESTRE DOS RADARES</div>
+            </div>`;
+        document.getElementById('feedback').className = 'fb-ok';
+
+        setTimeout(() => {
+            document.getElementById('mission-report').style.display = 'block';
+        }, 1400);
+
+    } else {
+        // Revisita
+        setTalk(`<span class="gold">Perfeito!</span> Você ainda domina o <strong>MUV</strong>, Mestre dos Radares. Quer um novo desafio?`);
+        document.getElementById('feedback').innerHTML = `
+            <div style="display:flex;flex-direction:column;align-items:center;gap:5px;padding:6px 0;">
+                <span style="color:var(--neon);font-family:'Share Tech Mono',monospace;font-size:.65rem;">✓ RODADA CONCLUÍDA · MESTRE DOS RADARES</span>
+                <button onclick="ativarModoPratica()" style="margin-top:4px;background:transparent;border:1.5px solid var(--neon);color:var(--neon);padding:7px 18px;font-family:'Orbitron',monospace;font-size:.48rem;font-weight:700;letter-spacing:2px;cursor:pointer;border-radius:5px;transition:.2s;">↺ NOVA RODADA</button>
+            </div>`;
+        document.getElementById('feedback').className = 'fb-ok';
+        document.getElementById('sys-tag').innerHTML = '<span style="color:var(--neon);letter-spacing:2px;">MODO PRÁTICA · MESTRE DOS RADARES</span>';
+    }
+}
+
+/* ══ GERADOR DE DESAFIOS ALEATÓRIOS ══ */
+function gerarNivelAleatorio() {
+    const nivelIdx = Math.floor(Math.random() * 3);
+    const configs = [
+        // Nível fácil — v0=0, aceleração inteira
+        () => {
+            const accs = [4,5,6,7,8];
+            const a = accs[Math.floor(Math.random() * accs.length)];
+            const t = [8,10,12][Math.floor(Math.random() * 3)];
+            const target = a * t;
+            return { v0: 0, target, t, limit: target + 10, acc: a,
+                msg: `Modo Prática! Parta do <strong>repouso</strong> e atinja <strong>${target} km/h</strong> em <strong>${t}s</strong>. Calcule <em>a = v / t</em>!`,
+                labelLvl: 'PRÁTICA — NÍVEL FÁCIL' };
+        },
+        // Nível médio — v0 não nulo
+        () => {
+            const v0 = [20,30,40,50][Math.floor(Math.random() * 4)];
+            const a  = [8,10,12,15][Math.floor(Math.random() * 4)];
+            const t  = [4,5,6][Math.floor(Math.random() * 3)];
+            const target = v0 + a * t;
+            return { v0, target, t, limit: target + 12, acc: a,
+                msg: `Partindo de <strong>${v0} km/h</strong>, alcance <strong>${target} km/h</strong> em <strong>${t}s</strong>. Use <em>a = (v − v₀) / Δt</em>!`,
+                labelLvl: 'PRÁTICA — NÍVEL MÉDIO' };
+        },
+        // Nível difícil — limite apertado
+        () => {
+            const v0 = [0,20][Math.floor(Math.random() * 2)];
+            const a  = parseFloat((Math.random() * 8 + 4).toFixed(1));
+            const t  = [8,10,12,15][Math.floor(Math.random() * 4)];
+            const target = Math.round(v0 + a * t);
+            return { v0, target, t, limit: target + 5, acc: a,
+                msg: `<strong>Zona monitorada!</strong> De <strong>${v0} km/h</strong> para <strong>${target} km/h</strong> em <strong>${t}s</strong>. Margem de erro mínima!`,
+                labelLvl: 'PRÁTICA — NÍVEL DIFÍCIL' };
+        },
+    ];
+    return configs[nivelIdx]();
+}
+
+/* ══ MODO PRÁTICA ══ */
+function ativarModoPratica() {
+    document.getElementById('mission-report').style.display = 'none';
+    modoPratica = true;
+    lvl = 0;
+    animCar = false;
+    ['b1','b2','b3'].forEach(id => document.getElementById(id).classList.remove('on'));
+    document.getElementById('xp-bar').style.width = '0%';
+    document.getElementById('sys-tag').innerHTML = 'SISTEMA V-PHYS v2.0 · MODO PRÁTICA';
+    setTalk(talks.pratica);
+    setTimeout(() => carregarNivel(gerarNivelAleatorio()), 900);
+}
+
+/* ══ VOLTAR À CENTRAL ══ */
+function voltarAoCentral() {
+    if (window.parent !== window) {
+        window.parent.postMessage({ tipo: 'voltar_menu' }, '*');
+    } else {
+        window.location.href = 'index.html';
+    }
+}
+
+/* ══ FEEDBACK AUDITIVO ══ */
+function bipSucesso() {
+    try {
+        const ac = new AudioContext();
+        const osc = ac.createOscillator(), gain = ac.createGain();
+        osc.connect(gain); gain.connect(ac.destination);
+        osc.type = 'sine'; osc.frequency.value = 880;
+        gain.gain.setValueAtTime(0.25, ac.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.0001, ac.currentTime + 0.5);
+        osc.start(); osc.stop(ac.currentTime + 0.5);
+    } catch(e) {}
+}
+function bipErro() {
+    try {
+        const ac = new AudioContext();
+        const osc = ac.createOscillator(), gain = ac.createGain();
+        osc.connect(gain); gain.connect(ac.destination);
+        osc.type = 'sawtooth'; osc.frequency.value = 110;
+        gain.gain.setValueAtTime(0.3, ac.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.0001, ac.currentTime + 0.3);
+        osc.start(); osc.stop(ac.currentTime + 0.3);
+    } catch(e) {}
+}
+function bipVitoria() {
+    try {
+        const ac = new AudioContext();
+        [523, 659, 784, 1047].forEach((freq, i) => {
+            const osc = ac.createOscillator(), gain = ac.createGain();
+            osc.connect(gain); gain.connect(ac.destination);
+            osc.type = 'sine'; osc.frequency.value = freq;
+            const t = ac.currentTime + i * 0.15;
+            gain.gain.setValueAtTime(0.22, t);
+            gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.4);
+            osc.start(t); osc.stop(t + 0.4);
+        });
+    } catch(e) {}
+}
+
+/* ══ ENTER no input ══ */
+document.getElementById('acc-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter') iniciarTeste();
+});
+
+/* ══ INIT ══ */
+if (localStorage.getItem('vphys_muv_master') === 'true') {
+    // Já é mestre — modo prática direto
+    modoPratica = true;
+    document.getElementById('sys-tag').innerHTML = 'SISTEMA V-PHYS v2.0 · MODO PRÁTICA';
+    setTalk(talks.volta);
+    setTimeout(() => carregarNivel(gerarNivelAleatorio()), 800);
+} else {
+    carregarNivel(NIVEIS_CAMPANHA[0]);
+}
+</script>
+</body>
+</html>

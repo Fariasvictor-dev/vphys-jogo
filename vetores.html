@@ -1,0 +1,1253 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vetores — Simulador Físico</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Sora:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0d0f14;
+    --bg2: #13161e;
+    --bg3: #1a1e28;
+    --border: rgba(255,255,255,0.07);
+    --border2: rgba(255,255,255,0.12);
+    --text: #e8eaf2;
+    --text2: #8b91a8;
+    --text3: #555c73;
+    --blue: #39ff8f;
+    --green: #00e676;
+    --orange: #f97f3b;
+    --red: #f25757;
+    --purple: #a78bfa;
+    --yellow: #fbbf24;
+    --accent: #39ff8f;
+    --radius: 12px;
+    --radius-sm: 8px;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Sora', sans-serif;
+    min-height: 100vh;
+    padding: 0;
+  }
+
+  /* ─── PAGE SHELL ─── */
+  .page { max-width: 1100px; margin: 0 auto; padding: 28px 20px 60px; }
+
+  /* ─── HEADER ─── */
+  .page-header {
+    display: flex; align-items: flex-start; justify-content: space-between;
+    gap: 16px; margin-bottom: 28px; flex-wrap: wrap;
+  }
+  .badge-row { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+  .badge {
+    background: linear-gradient(135deg,#0a3320,#052214);
+    border: 1px solid rgba(57,255,143,0.3);
+    color: var(--blue); font-size: 10px; font-weight: 700;
+    letter-spacing: 1.5px; padding: 3px 10px; border-radius: 20px;
+    text-transform: uppercase;
+  }
+  .badge-level { background: rgba(255,255,255,0.05); border: 1px solid var(--border2); color: var(--text2); font-size: 10px; font-weight: 600; letter-spacing: 1px; padding: 3px 10px; border-radius: 20px; text-transform: uppercase; }
+  .page-title { font-size: 26px; font-weight: 700; color: var(--text); letter-spacing: -0.5px; }
+  .page-sub { font-size: 13px; color: var(--text2); margin-top: 4px; }
+
+  /* ─── CONCEPT CARDS ─── */
+  .concepts {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px; margin-bottom: 28px;
+  }
+  .concept-card {
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 14px 16px;
+    transition: border-color .2s;
+  }
+  .concept-card:hover { border-color: var(--border2); }
+  .concept-icon { font-size: 20px; margin-bottom: 8px; }
+  .concept-title { font-size: 11px; font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: .8px; margin-bottom: 6px; }
+  .concept-text { font-size: 12px; color: var(--text2); line-height: 1.6; }
+  .concept-text strong { color: var(--text); }
+
+  /* ─── SECTION TITLE ─── */
+  .section-title {
+    display: flex; align-items: center; gap: 10px;
+    font-size: 13px; font-weight: 700; color: var(--text2);
+    text-transform: uppercase; letter-spacing: 1px;
+    margin-bottom: 16px;
+  }
+  .section-title::before {
+    content: ''; display: block; width: 3px; height: 16px;
+    background: var(--accent); border-radius: 2px;  }
+  .section-title span { font-size: 10px; font-weight: 500; background: rgba(57,255,143,0.08); border: 1px solid rgba(57,255,143,0.2); color: var(--blue); padding: 2px 8px; border-radius: 20px; letter-spacing: .5px; text-transform: none; }
+
+  /* ─── 3D SIMULATOR ─── */
+  .sim-layout { display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap; margin-bottom: 40px; }
+  .canvas-wrap {
+    flex: 1 1 380px; background: var(--bg2); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 14px; position: relative; overflow: hidden;
+  }
+  .canvas-wrap::before {
+    content: ''; position: absolute; inset: 0; border-radius: var(--radius);
+    background: radial-gradient(ellipse at 30% 20%, rgba(57,255,143,0.04) 0%, transparent 60%);
+    pointer-events: none;
+  }
+  canvas { display: block; width: 100%; cursor: grab; border-radius: 8px; }
+  canvas:active { cursor: grabbing; }
+  .cam-hint { font-size: 11px; color: var(--text3); text-align: center; margin-top: 8px; }
+
+  .panel { flex: 0 0 230px; display: flex; flex-direction: column; gap: 12px; }
+
+  /* ─── CARDS ─── */
+  .card {
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 16px;
+  }
+  .card-title { font-size: 10px; font-weight: 700; color: var(--text3); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 14px; }
+
+  /* ─── SLIDERS ─── */
+  .slider-group { margin-bottom: 16px; }
+  .slider-group:last-of-type { margin-bottom: 4px; }
+  .slider-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 7px; }
+  .slider-label { display: flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 600; color: var(--text); }
+  .dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .slider-val { font-family: 'DM Mono', monospace; font-size: 12px; color: var(--text2); background: var(--bg3); padding: 2px 8px; border-radius: 6px; }
+  input[type=range] {
+    -webkit-appearance: none; appearance: none;
+    width: 100%; height: 5px; border-radius: 3px;
+    background: var(--bg3); cursor: pointer; outline: none;
+    transition: background .15s;
+  }
+  input[type=range].blue { accent-color: var(--accent); }
+  input[type=range].blue::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 8px rgba(57,255,143,0.5); cursor: pointer; }
+  input[type=range].green { accent-color: var(--green); }
+  input[type=range].green::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%; background: var(--green); box-shadow: 0 0 8px rgba(0,230,118,0.5); cursor: pointer; }
+  input[type=range].orange { accent-color: var(--orange); }
+  input[type=range].orange::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%; background: var(--orange); box-shadow: 0 0 8px rgba(249,127,59,0.5); cursor: pointer; }
+
+  .angle-pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: rgba(57,255,143,0.08); border: 1px solid rgba(57,255,143,0.2);
+    border-radius: 20px; padding: 4px 12px;
+    font-family: 'DM Mono', monospace; font-size: 11px; color: var(--accent); font-weight: 500; margin-top: 8px;
+  }
+
+  /* ─── RESULT CARD ─── */
+  .result-toggle {
+    width: 100%; padding: 0; border: none; background: none; cursor: pointer;
+    display: flex; align-items: center; justify-content: space-between;
+    font-family: 'Sora', sans-serif; font-size: 10px; font-weight: 700;
+    color: var(--text3); text-transform: uppercase; letter-spacing: 1px;
+  }
+  .rticon { font-size: 12px; transition: transform .2s; color: var(--text2); }
+  .rticon.open { transform: rotate(180deg); }
+  .result-body { overflow: hidden; max-height: 0; transition: max-height .3s ease; }
+  .result-body.open { max-height: 240px; }
+  .formula-box { margin-top: 12px; background: var(--bg3); border-radius: var(--radius-sm); padding: 12px 14px; border: 1px solid var(--border); }
+  .formula-line { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--text2); margin-bottom: 4px; }
+  .formula-result { font-family: 'DM Mono', monospace; font-size: 22px; font-weight: 500; color: var(--text); margin-top: 8px; }
+  .formula-tag { font-size: 11px; color: var(--text3); margin-top: 4px; }
+
+  /* ─── BUTTONS ─── */
+  .btn-ghost {
+    width: 100%; padding: 9px;
+    border: 1px solid var(--border2); background: var(--bg3);
+    border-radius: var(--radius-sm);
+    font-family: 'Sora', sans-serif; font-size: 12px; font-weight: 600;
+    color: var(--text2); cursor: pointer; transition: background .15s, color .15s;
+  }
+  .btn-ghost:hover { background: rgba(255,255,255,0.06); color: var(--text); }
+
+  .btn-primary {
+    padding: 8px 14px;
+    border: none; background: var(--accent);
+    border-radius: var(--radius-sm);
+    font-family: 'Sora', sans-serif; font-size: 12px; font-weight: 600;
+    color: #071a0e; cursor: pointer; transition: opacity .15s;
+  }
+  .btn-primary:hover { opacity: .85; }
+
+  .btn-danger {
+    padding: 8px 14px;
+    border: none; background: rgba(242,87,87,0.15);
+    border: 1px solid rgba(242,87,87,0.3);
+    border-radius: var(--radius-sm);
+    font-family: 'Sora', sans-serif; font-size: 12px; font-weight: 600;
+    color: var(--red); cursor: pointer; transition: background .15s;
+  }
+  .btn-danger:hover { background: rgba(242,87,87,0.25); }
+
+  /* ─── DIVIDER ─── */
+  .divider {
+    border: none; border-top: 1px solid var(--border);
+    margin: 32px 0;
+  }
+
+  /* ═══════════════════════════════════════════
+     2D CARTESIAN PLANE SIMULATOR
+  ═══════════════════════════════════════════ */
+
+  .cart-layout { display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap; }
+  .cart-canvas-wrap {
+    flex: 1 1 400px; background: var(--bg2); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 14px; position: relative;
+  }
+  .cart-canvas-wrap::before {
+    content: ''; position: absolute; inset: 0; border-radius: var(--radius);
+    background: radial-gradient(ellipse at 70% 70%, rgba(57,255,143,0.04) 0%, transparent 60%);
+    pointer-events: none;
+  }
+  #cart2d { display: block; width: 100%; cursor: crosshair; border-radius: 8px; }
+
+  .cart-panel { flex: 0 0 260px; display: flex; flex-direction: column; gap: 12px; }
+
+  /* ─── ADD VECTOR FORM ─── */
+  .add-form { display: flex; flex-direction: column; gap: 10px; }
+  .form-row { display: flex; gap: 8px; align-items: center; }
+  .form-label { font-size: 11px; font-weight: 600; color: var(--text2); text-transform: uppercase; letter-spacing: .5px; width: 28px; flex-shrink: 0; }
+  .form-input {
+    flex: 1; background: var(--bg3); border: 1px solid var(--border2);
+    border-radius: var(--radius-sm); padding: 7px 10px;
+    font-family: 'DM Mono', monospace; font-size: 13px; color: var(--text);
+    outline: none; transition: border-color .15s;
+  }
+  .form-input:focus { border-color: var(--accent); }
+  .form-unit { font-size: 11px; color: var(--text3); width: 14px; }
+
+  .color-picker-row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+  .color-opt {
+    width: 20px; height: 20px; border-radius: 50%; cursor: pointer;
+    border: 2px solid transparent; transition: transform .15s, border-color .15s;
+  }
+  .color-opt:hover { transform: scale(1.15); }
+  .color-opt.active { border-color: #fff; transform: scale(1.15); }
+
+  /* ─── VECTOR LIST ─── */
+  .vec-list { display: flex; flex-direction: column; gap: 6px; max-height: 280px; overflow-y: auto; }
+  .vec-list::-webkit-scrollbar { width: 4px; }
+  .vec-list::-webkit-scrollbar-track { background: var(--bg3); border-radius: 2px; }
+  .vec-list::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+  .vec-item {
+    background: var(--bg3); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); padding: 10px 12px;
+    display: flex; align-items: center; gap: 8px;
+    transition: border-color .15s;
+    cursor: pointer;
+  }
+  .vec-item:hover { border-color: var(--border2); }
+  .vec-item.selected { border-color: rgba(57,255,143,0.4); background: rgba(57,255,143,0.04); }
+  .vec-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .vec-info { flex: 1; }
+  .vec-name { font-size: 12px; font-weight: 600; color: var(--text); font-family: 'DM Mono', monospace; }
+  .vec-details { font-size: 11px; color: var(--text2); margin-top: 2px; }
+  .vec-del { background: none; border: none; cursor: pointer; color: var(--text3); font-size: 14px; padding: 2px 4px; border-radius: 4px; transition: color .15s, background .15s; }
+  .vec-del:hover { color: var(--red); background: rgba(242,87,87,0.1); }
+  .vec-empty { font-size: 12px; color: var(--text3); text-align: center; padding: 20px 0; }
+
+  /* ─── RESULT BOX ─── */
+  .result-box {
+    background: var(--bg3); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); padding: 12px 14px;
+  }
+  .result-row { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; }
+  .result-row:last-child { margin-bottom: 0; }
+  .result-key { font-size: 11px; color: var(--text2); }
+  .result-val { font-family: 'DM Mono', monospace; font-size: 13px; color: var(--text); font-weight: 500; }
+  .result-val.highlight { color: var(--red); font-size: 16px; }
+
+  /* ─── EDIT SLIDERS ─── */
+  .edit-section { display: none; }
+  .edit-section.active { display: block; }
+
+  /* ─── INFO TOOLTIP ─── */
+  .info-bar {
+    background: rgba(57,255,143,0.05); border: 1px solid rgba(57,255,143,0.15);
+    border-radius: var(--radius-sm); padding: 8px 12px;
+    font-size: 11px; color: var(--accent); line-height: 1.5;
+    margin-top: 4px;
+  }
+
+  /* ─── ORIGIN INPUTS (i j k) ─── */
+  .origin-row { display: flex; gap: 6px; align-items: center; }
+  .origin-row .form-label { width: 18px; font-style: italic; color: var(--purple); }
+  .origin-input {
+    flex: 1; background: var(--bg3); border: 1px solid rgba(167,139,250,.25);
+    border-radius: var(--radius-sm); padding: 5px 8px;
+    font-family: 'DM Mono', monospace; font-size: 12px; color: var(--purple);
+    outline: none; transition: border-color .15s; text-align: center;
+  }
+  .origin-input:focus { border-color: var(--purple); }
+  .origin-badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    background: rgba(167,139,250,.08); border: 1px solid rgba(167,139,250,.2);
+    border-radius: 20px; padding: 3px 10px;
+    font-family: 'DM Mono', monospace; font-size: 10px; color: var(--purple);
+  }
+  .origin-section-title {
+    font-size: 10px; font-weight: 700; color: var(--purple);
+    text-transform: uppercase; letter-spacing: .8px; margin-bottom: 8px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .origin-section-title::before {
+    content: ''; display: block; width: 3px; height: 12px;
+    background: var(--purple); border-radius: 2px;
+  }
+
+  /* ─── MAIN TABS ─── */
+  .main-tabs { display: flex; gap: 4px; margin-bottom: 24px; border-bottom: 1px solid var(--border); padding-bottom: 0; }
+  .main-tab-btn {
+    padding: 8px 20px; border: none; background: transparent;
+    font-family: 'Sora', sans-serif; font-size: 12px; font-weight: 600;
+    color: var(--text2); cursor: pointer; border-bottom: 2px solid transparent;
+    margin-bottom: -1px; transition: color .15s, border-color .15s;
+  }
+  .main-tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .main-tab-btn:hover:not(.active) { color: var(--text); }
+  .main-tab-pane { display: none; }
+  .main-tab-pane.active { display: block; }
+
+  /* ─── GUIDE ─── */
+  .guide-hero {
+    background: rgba(57,255,143,0.04); border: 1px solid rgba(57,255,143,0.15);
+    border-radius: var(--radius); padding: 24px 28px; margin-bottom: 20px;
+  }
+  .guide-hero h3 { font-size: 16px; font-weight: 700; color: var(--accent); margin-bottom: 8px; }
+  .guide-hero p { font-size: 13px; color: var(--text2); line-height: 1.7; }
+  .guide-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(240px,1fr)); gap: 12px; margin-bottom: 20px; }
+  .guide-card {
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 18px;
+  }
+  .guide-card .gi { font-size: 22px; margin-bottom: 8px; }
+  .guide-card h4 { font-size: 12px; font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: .6px; margin-bottom: 8px; }
+  .guide-card p, .guide-card li { font-size: 12px; color: var(--text2); line-height: 1.65; margin: 0; }
+  .guide-card ul { padding-left: 14px; margin-top: 6px; }
+  .guide-card li { margin-bottom: 4px; }
+  .guide-table { width: 100%; border-collapse: collapse; background: var(--bg2); border-radius: var(--radius); overflow: hidden; border: 1px solid var(--border); margin-bottom: 20px; }
+  .guide-table th { background: rgba(57,255,143,.07); padding: 10px 14px; font-size: 11px; text-align: left; letter-spacing: .5px; text-transform: uppercase; color: var(--accent); border-bottom: 1px solid var(--border); }
+  .guide-table td { padding: 9px 14px; font-size: 12px; border-bottom: 1px solid var(--border); color: var(--text2); }
+  .guide-table tr:last-child td { border-bottom: none; }
+  .guide-table td:first-child { font-family: 'DM Mono', monospace; color: var(--text); font-size: 11px; }
+  .fml-row { display: flex; gap: 10px; flex-wrap: wrap; }
+  .fml { background: rgba(0,0,0,.35); border-left: 3px solid var(--accent); border-radius: 0 6px 6px 0; padding: 9px 14px; font-family: 'DM Mono', monospace; font-size: 12px; color: var(--accent); flex: 1; min-width: 180px; }
+  .fml span { display: block; font-family: 'Sora', sans-serif; font-size: 11px; color: var(--text2); margin-top: 3px; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- ── HEADER ── -->
+  <div class="page-header">
+    <div>
+      <div class="badge-row">
+        <span class="badge">V-PHYS</span>
+        <span class="badge-level">1º Ano · Dinâmica</span>
+      </div>
+      <div class="page-title">Vetores e Deslocamento</div>
+      <div class="page-sub">Simulador interativo 3D + Plano Cartesiano 2D</div>
+    </div>
+  </div>
+
+  <!-- ── MAIN TABS ── -->
+  <div class="main-tabs">
+    <button class="main-tab-btn active" onclick="showMainTab('sim',this)">⚡ Simulador</button>
+    <button class="main-tab-btn" onclick="showMainTab('guide',this)">📖 Como Usar</button>
+  </div>
+
+  <!-- ══ SIMULATOR TAB ══ -->
+  <div class="main-tab-pane active" id="mtab-sim">
+
+  <!-- ── CONCEPT CARDS ── -->
+  <div class="concepts">
+    <div class="concept-card">
+      <div class="concept-icon">📐</div>
+      <div class="concept-title">O que é um vetor?</div>
+      <div class="concept-text">Um vetor é uma grandeza que possui <strong>módulo</strong> (tamanho), <strong>direção</strong> (reta de atuação) e <strong>sentido</strong> (para onde aponta). Exemplos: força, velocidade, aceleração e deslocamento.</div>
+    </div>
+    <div class="concept-card">
+      <div class="concept-icon">🔢</div>
+      <div class="concept-title">Módulo e Ângulo</div>
+      <div class="concept-text">O <strong>módulo</strong> é o comprimento do vetor. O <strong>ângulo θ</strong> é medido em relação ao eixo X positivo. No plano, as componentes são: <strong>Vₓ = V·cos(θ)</strong> e <strong>Vy = V·sen(θ)</strong>.</div>
+    </div>
+    <div class="concept-card">
+      <div class="concept-icon">➕</div>
+      <div class="concept-title">Vetor Resultante</div>
+      <div class="concept-text">A soma de vetores gera um <strong>vetor resultante</strong>. Para vetores perpendiculares: <strong>R = √(Vₓ² + Vy²)</strong> pelo Teorema de Pitágoras. O ângulo resultante é calculado por <strong>arctan(Ry/Rₓ)</strong>.</div>
+    </div>
+    <div class="concept-card">
+      <div class="concept-icon">🧩</div>
+      <div class="concept-title">Decomposição</div>
+      <div class="concept-text">Todo vetor pode ser <strong>decomposto</strong> em componentes nos eixos X, Y (e Z no espaço). Isso facilita calcular somas, pois somamos componente por componente separadamente.</div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════
+       3D SIMULATOR
+  ══════════════════════════════════ -->
+  <div class="section-title">Simulador 3D — Vetores no Espaço <span>Arraste para girar</span></div>
+
+  <div class="sim-layout">
+    <div class="canvas-wrap">
+      <canvas id="c" height="380"></canvas>
+      <div class="cam-hint">🖱 Arraste para girar · Scroll para zoom · Touch suportado</div>
+    </div>
+
+    <div class="panel">
+      <div class="card">
+        <div class="card-title">Controles dos Vetores</div>
+
+        <div class="slider-group">
+          <div class="slider-header">
+            <div class="slider-label"><span class="dot" style="background:#39ff8f"></span> D₁ — Eixo X</div>
+            <span class="slider-val" id="lbl1">150 m</span>
+          </div>
+          <input type="range" class="blue" id="s1" min="10" max="280" value="150" step="1" oninput="onSlider()">
+        </div>
+
+        <div class="slider-group">
+          <div class="slider-header">
+            <div class="slider-label"><span class="dot" style="background:#00e676"></span> D₂ — Eixo Y</div>
+            <span class="slider-val" id="lbl2">150 m</span>
+          </div>
+          <input type="range" class="green" id="s2" min="10" max="280" value="150" step="1" oninput="onSlider()">
+        </div>
+
+        <div class="slider-group">
+          <div class="slider-header">
+            <div class="slider-label"><span class="dot" style="background:var(--orange)"></span> D₃ — Eixo Z</div>
+            <span class="slider-val" id="lbl3">0 m</span>
+          </div>
+          <input type="range" class="orange" id="s3" min="-280" max="280" value="0" step="1" oninput="onSlider()">
+        </div>
+
+        <div class="angle-pill" id="angpill">θ = 45.0°</div>
+      </div>
+
+      <div class="card">
+        <button class="result-toggle" onclick="toggleResult()">
+          <span>Vetor Resultante</span>
+          <span class="rticon" id="ricon">▾</span>
+        </button>
+        <div class="result-body" id="rbody">
+          <div class="formula-box">
+            <div class="formula-line">DR = √(D₁² + D₂² + D₃²)</div>
+            <div class="formula-line" id="fline">= √(150² + 150² + 0²)</div>
+            <div class="formula-result" id="fres">212.1 m</div>
+            <div class="formula-tag">Módulo do vetor resultante</div>
+          </div>
+        </div>
+      </div>
+
+      <button class="btn-ghost" onclick="resetAll()">↺ Restaurar padrão</button>
+    </div>
+  </div>
+
+  <hr class="divider">
+
+  <!-- ══════════════════════════════════
+       2D CARTESIAN PLANE SIMULATOR
+  ══════════════════════════════════ -->
+  <div class="section-title">Simulador 2D — Plano Cartesiano <span>Adicione e edite vetores</span></div>
+
+  <div class="info-bar" style="margin-bottom:16px">
+    💡 <strong>Como usar:</strong> Defina o módulo e ângulo de um vetor, escolha uma cor e clique em <em>Adicionar Vetor</em>. Selecione um vetor na lista para editar seus valores em tempo real. O vetor resultante é calculado automaticamente.
+  </div>
+
+  <div class="cart-layout">
+    <!-- Canvas -->
+    <div class="cart-canvas-wrap">
+      <canvas id="cart2d" height="460"></canvas>
+      <div class="cam-hint">Plano Cartesiano · Origem em (0,0)</div>
+    </div>
+
+    <!-- Panel -->
+    <div class="cart-panel">
+
+      <!-- Add vector -->
+      <div class="card">
+        <div class="card-title">Adicionar Vetor</div>
+        <div class="add-form">
+          <div class="form-row">
+            <div class="form-label">|V|</div>
+            <input class="form-input" type="number" id="inMag" value="100" min="1" max="400" placeholder="Módulo">
+            <div class="form-unit">u</div>
+          </div>
+          <div class="form-row">
+            <div class="form-label">θ</div>
+            <input class="form-input" type="number" id="inAng" value="45" min="-360" max="360" placeholder="Ângulo">
+            <div class="form-unit">°</div>
+          </div>
+          <div style="font-size:11px;color:var(--text2);font-weight:600;text-transform:uppercase;letter-spacing:.5px">Cor</div>
+          <div class="color-picker-row" id="colorPicker">
+            <div class="color-opt active" style="background:#4f8ef7" data-color="#4f8ef7"></div>
+            <div class="color-opt" style="background:#34d07e" data-color="#34d07e"></div>
+            <div class="color-opt" style="background:#f97f3b" data-color="#f97f3b"></div>
+            <div class="color-opt" style="background:#f25757" data-color="#f25757"></div>
+            <div class="color-opt" style="background:#a78bfa" data-color="#a78bfa"></div>
+            <div class="color-opt" style="background:#fbbf24" data-color="#fbbf24"></div>
+            <div class="color-opt" style="background:#06b6d4" data-color="#06b6d4"></div>
+            <div class="color-opt" style="background:#f472b6" data-color="#f472b6"></div>
+          </div>
+          <!-- ORIGIN POINT -->
+          <div class="origin-section-title">Ponto de Aplicação</div>
+          <div class="origin-row">
+            <div class="form-label" style="color:var(--purple);width:14px">i</div>
+            <input class="origin-input" type="number" id="inOriX" value="0" placeholder="0" title="Componente i (X) do ponto de início">
+            <div class="form-label" style="color:var(--purple);width:14px">j</div>
+            <input class="origin-input" type="number" id="inOriY" value="0" placeholder="0" title="Componente j (Y) do ponto de início">
+          </div>
+          <div class="origin-badge" id="inOriPreview">Início: (0, 0)</div>
+          <button class="btn-primary" onclick="addVector2D()" style="width:100%">+ Adicionar Vetor</button>
+        </div>
+      </div>
+
+      <!-- Edit selected vector -->
+      <div class="card edit-section" id="editSection">
+        <div class="card-title">Editar Vetor Selecionado</div>
+        <div class="add-form">
+          <div class="form-row">
+            <div class="form-label">|V|</div>
+            <input class="form-input" type="number" id="editMag" value="100" min="1" max="400" oninput="updateSelected()">
+            <div class="form-unit">u</div>
+          </div>
+          <div class="form-row">
+            <div class="form-label">θ</div>
+            <input class="form-input" type="number" id="editAng" value="45" min="-360" max="360" oninput="updateSelected()">
+            <div class="form-unit">°</div>
+          </div>
+          <div style="font-size:11px;color:var(--text2);display:flex;gap:8px;font-family:'DM Mono',monospace">
+            <span>Vₓ = <span id="editVx" style="color:var(--text)">70.7</span></span>
+            <span>Vy = <span id="editVy" style="color:var(--text)">70.7</span></span>
+          </div>
+          <!-- Edit origin -->
+          <div class="origin-section-title" style="margin-top:4px">Ponto de Aplicação</div>
+          <div class="origin-row">
+            <div class="form-label" style="color:var(--purple);width:14px">i</div>
+            <input class="origin-input" type="number" id="editOriX" value="0" oninput="updateSelected()">
+            <div class="form-label" style="color:var(--purple);width:14px">j</div>
+            <input class="origin-input" type="number" id="editOriY" value="0" oninput="updateSelected()">
+          </div>
+        </div>
+      </div>
+
+      <!-- Vector list -->
+      <div class="card">
+        <div class="card-title">Vetores <span id="vecCount" style="color:var(--text);font-weight:700;font-family:'DM Mono',monospace;font-size:13px"></span></div>
+        <div class="vec-list" id="vecList">
+          <div class="vec-empty">Nenhum vetor adicionado ainda.</div>
+        </div>
+      </div>
+
+      <!-- Resultant -->
+      <div class="card">
+        <div class="card-title">Vetor Resultante 2D</div>
+        <div class="result-box">
+          <div class="result-row">
+            <span class="result-key">Rₓ (componente X)</span>
+            <span class="result-val" id="res2Rx">—</span>
+          </div>
+          <div class="result-row">
+            <span class="result-key">Ry (componente Y)</span>
+            <span class="result-val" id="res2Ry">—</span>
+          </div>
+          <div class="result-row">
+            <span class="result-key">Módulo |R|</span>
+            <span class="result-val highlight" id="res2Mod">—</span>
+          </div>
+          <div class="result-row">
+            <span class="result-key">Ângulo θ</span>
+            <span class="result-val" id="res2Ang">—</span>
+          </div>
+          <div class="result-row" style="margin-top:8px;border-top:1px solid var(--border);padding-top:8px">
+            <span class="result-key">Fórmula</span>
+            <span class="result-val" style="font-size:11px;color:var(--text2)" id="res2Formula">|R| = √(Rₓ²+Ry²)</span>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:10px">
+          <button class="btn-ghost" onclick="clearVectors2D()" style="flex:1;padding:8px">🗑 Limpar</button>
+          <button class="btn-ghost" onclick="toggleResultant()" style="flex:1;padding:8px" id="btnResultant">👁 Resultante</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  </div><!-- end mtab-sim -->
+
+  <!-- ══ GUIDE TAB ══ -->
+  <div class="main-tab-pane" id="mtab-guide">
+    <div class="guide-hero">
+      <h3>📖 Como usar o Simulador de Vetores</h3>
+      <p>Este simulador possui dois ambientes interativos: um <strong style="color:var(--accent)">Simulador 3D</strong> para explorar vetores no espaço tridimensional, e um <strong style="color:var(--accent)">Plano Cartesiano 2D</strong> para compor, decompor e somar vetores no plano. Cada vetor 2D pode ter um <strong style="color:var(--purple)">ponto de aplicação personalizado (i, j)</strong>, permitindo representar vetores que não partem da origem.</p>
+    </div>
+
+    <div class="guide-grid">
+      <div class="guide-card">
+        <div class="gi">🌐</div>
+        <h4>1. Simulador 3D</h4>
+        <ul>
+          <li>Use os <strong style="color:var(--text)">sliders D₁, D₂, D₃</strong> para definir os deslocamentos nos eixos X, Y e Z.</li>
+          <li><strong style="color:var(--text)">Arraste o mouse</strong> sobre a cena para girar a câmera e ver o vetor em 3D.</li>
+          <li>Use o <strong style="color:var(--text)">scroll</strong> para ampliar ou afastar.</li>
+          <li>Clique em <em>Vetor Resultante</em> para ver o módulo total DR calculado automaticamente.</li>
+        </ul>
+      </div>
+      <div class="guide-card">
+        <div class="gi">➕</div>
+        <h4>2. Adicionar Vetores 2D</h4>
+        <ul>
+          <li>Defina o <strong style="color:var(--text)">módulo |V|</strong> (comprimento) e o <strong style="color:var(--text)">ângulo θ</strong> em graus (0° = eixo X positivo, 90° = eixo Y).</li>
+          <li>Escolha uma <strong style="color:var(--text)">cor</strong> para identificar o vetor na lista.</li>
+          <li>Clique em <strong style="color:var(--accent)">+ Adicionar Vetor</strong>.</li>
+        </ul>
+      </div>
+      <div class="guide-card">
+        <div class="gi">📍</div>
+        <h4>3. Ponto de Aplicação (i, j)</h4>
+        <ul>
+          <li>Por padrão, vetores partem da origem (0, 0).</li>
+          <li>No formulário de adição, defina <strong style="color:var(--purple)">i</strong> (componente X) e <strong style="color:var(--purple)">j</strong> (componente Y) do ponto inicial.</li>
+          <li>O vetor será desenhado a partir desse ponto — útil para representar forças aplicadas em posições diferentes.</li>
+          <li>Ao editar um vetor selecionado, o ponto de aplicação também pode ser alterado.</li>
+        </ul>
+      </div>
+      <div class="guide-card">
+        <div class="gi">✏️</div>
+        <h4>4. Editar e Remover</h4>
+        <ul>
+          <li>Clique num vetor da lista para <strong style="color:var(--text)">selecioná-lo</strong> — ele ficará destacado no plano.</li>
+          <li>O painel <em>Editar Vetor Selecionado</em> aparece automaticamente: altere módulo, ângulo ou ponto de aplicação em tempo real.</li>
+          <li>Clique em <strong style="color:var(--red)">✕</strong> para remover um vetor individual.</li>
+          <li>Use <strong style="color:var(--text)">🗑 Limpar</strong> para apagar todos os vetores de uma vez.</li>
+        </ul>
+      </div>
+      <div class="guide-card">
+        <div class="gi">📊</div>
+        <h4>5. Vetor Resultante</h4>
+        <ul>
+          <li>A <strong style="color:var(--red)">seta vermelha tracejada</strong> representa a soma vetorial de todos os vetores.</li>
+          <li>O painel mostra Rₓ, Ry, módulo |R| e ângulo θ da resultante.</li>
+          <li>Use o botão <strong style="color:var(--text)">👁 Resultante</strong> para mostrar/ocultar a seta.</li>
+          <li>A resultante parte sempre da <strong style="color:var(--text)">origem (0,0)</strong>.</li>
+        </ul>
+      </div>
+      <div class="guide-card">
+        <div class="gi">🧩</div>
+        <h4>6. Componentes ij na Lista</h4>
+        <p>Cada vetor na lista mostra suas componentes Vₓ e Vy calculadas em tempo real. O ponto de aplicação (i, j) é exibido para clareza física — é o ponto onde a força ou deslocamento atua no sistema.</p>
+      </div>
+    </div>
+
+    <table class="guide-table">
+      <thead><tr><th>Cenário</th><th>Como configurar</th><th>Conceito</th></tr></thead>
+      <tbody>
+        <tr><td>Vetor na horizontal</td><td>θ = 0°, qualquer módulo</td><td>Vetor na direção +X</td></tr>
+        <tr><td>Vetor na vertical</td><td>θ = 90°, qualquer módulo</td><td>Vetor na direção +Y</td></tr>
+        <tr><td>Dois vetores perpendiculares</td><td>V₁ θ=0° + V₂ θ=90°</td><td>Pitágoras: R=√(V₁²+V₂²)</td></tr>
+        <tr><td>Força em ponto distante</td><td>Setar i=50, j=30 no ponto de aplicação</td><td>Vetor não parte da origem</td></tr>
+        <tr><td>Vetor oposto</td><td>θ = 180° (ou negativo do original)</td><td>Vetores antiparalelos</td></tr>
+        <tr><td>Resultante nula</td><td>V₁ θ=30° + V₂ θ=210° (mesmo módulo)</td><td>Equilíbrio vetorial</td></tr>
+      </tbody>
+    </table>
+
+    <div class="fml-row">
+      <div class="fml">Vₓ = |V|·cos(θ)<span>Componente horizontal</span></div>
+      <div class="fml">Vy = |V|·sen(θ)<span>Componente vertical</span></div>
+      <div class="fml">|R| = √(Rₓ²+Ry²)<span>Módulo da resultante</span></div>
+      <div class="fml">θ_R = arctan(Ry/Rₓ)<span>Ângulo da resultante</span></div>
+    </div>
+  </div><!-- end mtab-guide -->
+
+</div><!-- end .page -->
+
+<script>
+/* ════════════════════════════════════════════
+   3D SIMULATOR
+════════════════════════════════════════════ */
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+let d1 = 150, d2 = 150, d3 = 0;
+let showResult = false, resultOpen = false;
+let camYaw = -0.5, camPitch = 0.38, camZoom = 1.0;
+let dragging = false, lastMX = 0, lastMY = 0;
+const MAX = 280;
+
+function project(x, y, z) {
+  const W = canvas.width, H = canvas.height;
+  const cy = Math.cos(camYaw), sy = Math.sin(camYaw);
+  const cp = Math.cos(camPitch), sp = Math.sin(camPitch);
+  let rx = x * cy - z * sy;
+  let ry = y;
+  let rz = x * sy + z * cy;
+  let rx2 = rx;
+  let ry2 = ry * cp - rz * sp;
+  let rz2 = ry * sp + rz * cp;
+  const fov = 520 * camZoom;
+  const depth = fov + rz2 + 200;
+  return [W/2 + rx2 * fov / depth, H/2 - ry2 * fov / depth];
+}
+
+function drawGrid() {
+  const g = 'rgba(255,255,255,0.05)';
+  const a = 'rgba(255,255,255,0.13)';
+  const s = MAX * 1.2;
+  const steps = 6;
+  ctx.lineWidth = 0.5; ctx.strokeStyle = g;
+  for (let i = -steps; i <= steps; i++) {
+    const t = i / steps * s;
+    let [ax,ay] = project(t,0,-s), [bx,by] = project(t,0,s);
+    ctx.beginPath(); ctx.moveTo(ax,ay); ctx.lineTo(bx,by); ctx.stroke();
+    let [cx2,cy2] = project(-s,0,t), [dx,dy] = project(s,0,t);
+    ctx.beginPath(); ctx.moveTo(cx2,cy2); ctx.lineTo(dx,dy); ctx.stroke();
+  }
+  ctx.strokeStyle = a; ctx.lineWidth = 1.2;
+  const [ox,oy] = project(0,0,0);
+  [
+    [s,0,0,'X'], [0,s,0,'Y'], [0,0,s,'Z']
+  ].forEach(([px,py,pz,lbl])=>{
+    const [ex,ey] = project(px,py,pz);
+    ctx.beginPath(); ctx.moveTo(ox,oy); ctx.lineTo(ex,ey); ctx.stroke();
+    ctx.font = '11px Sora, sans-serif';
+    ctx.fillStyle = 'rgba(255,255,255,0.3)';
+    ctx.fillText(lbl, ex+4, ey+4);
+  });
+}
+
+function arrow3D(x1,y1,z1,x2,y2,z2,color,lbl) {
+  const [ax,ay] = project(x1,y1,z1);
+  const [bx,by] = project(x2,y2,z2);
+  const dx = bx-ax, dy = by-ay, len = Math.hypot(dx,dy);
+  if (len < 3) return;
+  const ux=dx/len, uy=dy/len, hl=11;
+  ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineWidth = 3; ctx.lineCap='round';
+  ctx.shadowColor = color; ctx.shadowBlur = 6;
+  ctx.beginPath(); ctx.moveTo(ax,ay); ctx.lineTo(bx-ux*hl, by-uy*hl); ctx.stroke();
+  ctx.shadowBlur = 0;
+  ctx.beginPath();
+  ctx.moveTo(bx,by);
+  ctx.lineTo(bx-ux*hl-uy*5, by-uy*hl+ux*5);
+  ctx.lineTo(bx-ux*hl+uy*5, by-uy*hl-ux*5);
+  ctx.closePath(); ctx.fill();
+  const mx=(ax+bx)/2, my=(ay+by)/2;
+  ctx.font='bold 11px Sora, sans-serif'; ctx.fillStyle=color;
+  ctx.fillText(lbl, mx+6, my-5);
+}
+
+function dashed3D(x1,y1,z1,x2,y2,z2) {
+  const [ax,ay] = project(x1,y1,z1);
+  const [bx,by] = project(x2,y2,z2);
+  ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+  ctx.lineWidth=1; ctx.setLineDash([4,4]);
+  ctx.beginPath(); ctx.moveTo(ax,ay); ctx.lineTo(bx,by); ctx.stroke();
+  ctx.setLineDash([]);
+}
+
+function drawFigureAt(wx, wy, wz, scale, color) {
+  function p(lx, ly, lz) { return project(wx + lx*scale, wy + ly*scale, wz + lz*scale); }
+  const [hx,hy] = p(0,3.8,0);
+  const [h2x] = p(0.4,3.8,0);
+  const headR = Math.max(4, Math.abs(h2x-hx)*0.8);
+  ctx.fillStyle=color; ctx.strokeStyle=color; ctx.lineWidth=1.5; ctx.lineCap='round';
+  ctx.beginPath(); ctx.arc(hx,hy,headR,0,Math.PI*2); ctx.globalAlpha=0.92; ctx.fill(); ctx.globalAlpha=1; ctx.stroke();
+  ctx.lineWidth=2.5;
+  const [bx,by]=p(0,3,0),[b2x,b2y]=p(0,1,0);
+  ctx.beginPath(); ctx.moveTo(bx,by); ctx.lineTo(b2x,b2y); ctx.stroke();
+  const [lax,lay]=p(-1.4,2.2,0),[rax,ray]=p(1.4,2.2,0);
+  ctx.beginPath(); ctx.moveTo(lax,lay); ctx.lineTo(bx,by); ctx.lineTo(rax,ray); ctx.stroke();
+  const [llx,lly]=p(-1,0,0),[rlx,rly]=p(1,0,0);
+  ctx.beginPath(); ctx.moveTo(b2x,b2y); ctx.lineTo(llx,lly); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(b2x,b2y); ctx.lineTo(rlx,rly); ctx.stroke();
+}
+
+function drawStore(wx, wy, wz, scale, color) {
+  const sc = scale * 0.9;
+  const faces = [
+    [[-.8,0,.8],[.8,0,.8],[.8,2,.8],[-.8,2,.8]],
+    [[-.8,0,-.8],[.8,0,-.8],[.8,2,-.8],[-.8,2,-.8]],
+    [[-.8,0,-.8],[-.8,0,.8],[-.8,2,.8],[-.8,2,-.8]],
+    [[.8,0,-.8],[.8,0,.8],[.8,2,.8],[.8,2,-.8]],
+    [[-.8,2,-.8],[.8,2,-.8],[.8,2,.8],[-.8,2,.8]],
+    [[-.8,1.6,.8],[.8,1.6,.8],[.8,2,.8],[-.8,2,.8]],
+  ];
+  const faceColors = ['#c62828','#b71c1c','#d32f2f','#c62828','#ef9a9a','#e53935'];
+  faces.forEach((pts, i) => {
+    const screenPts = pts.map(([lx,ly,lz]) => project(wx + lx*sc, wy + ly*sc, wz + lz*sc));
+    ctx.beginPath();
+    ctx.moveTo(screenPts[0][0], screenPts[0][1]);
+    screenPts.forEach(([sx,sy]) => ctx.lineTo(sx, sy));
+    ctx.closePath();
+    ctx.fillStyle = faceColors[i];
+    ctx.globalAlpha = 0.9; ctx.fill(); ctx.globalAlpha = 1;
+    ctx.strokeStyle = color; ctx.lineWidth = 1.2; ctx.stroke();
+  });
+  const doorPts = [[-.25,0,.81],[.25,0,.81],[.25,1,.81],[-.25,1,.81]].map(([lx,ly,lz]) =>
+    project(wx+lx*sc, wy+ly*sc, wz+lz*sc));
+  ctx.beginPath();
+  ctx.moveTo(doorPts[0][0], doorPts[0][1]);
+  doorPts.forEach(([sx,sy]) => ctx.lineTo(sx,sy));
+  ctx.closePath(); ctx.fillStyle='#4a148c'; ctx.globalAlpha=0.7; ctx.fill(); ctx.globalAlpha=1;
+  ctx.strokeStyle=color; ctx.lineWidth=1; ctx.stroke();
+  const [sx,sy] = project(wx, wy+1.7*sc, wz+.82*sc);
+  ctx.font = 'bold 9px Sora, sans-serif';
+  ctx.fillStyle = '#fff'; ctx.textAlign='center';
+  ctx.fillText('MERCADO', sx, sy);
+  ctx.textAlign='left';
+}
+
+function calcDR() { return Math.sqrt(d1*d1 + d2*d2 + d3*d3); }
+
+function draw() {
+  canvas.width = canvas.offsetWidth;
+  canvas.height = canvas.offsetHeight || 380;
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  drawGrid();
+  const figS = 22;
+  dashed3D(0,0,0, d1,0,0);
+  dashed3D(d1,0,0, d1,d2,0);
+  if (Math.abs(d3)>2) dashed3D(d1,d2,0, d1,d2,d3);
+  arrow3D(0,0,0, d1,0,0, '#39ff8f', `D₁=${d1}m`);
+  arrow3D(d1,0,0, d1,d2,0, '#00e676', `D₂=${d2}m`);
+  if (Math.abs(d3)>2) arrow3D(d1,d2,0, d1,d2,d3, '#f97f3b', `D₃=${d3}m`);
+  if (showResult) {
+    const dr = calcDR();
+    ctx.save(); ctx.globalAlpha=0.9;
+    arrow3D(0,0,0, d1,d2,d3, '#f25757', `DR=${dr.toFixed(1)}m`);
+    ctx.restore();
+  }
+  drawStore(d1, d2, d3, figS, '#7f0000');
+  drawFigureAt(0, 0, 0, figS, '#00c853');
+  updateLabels();
+}
+
+function updateLabels() {
+  document.getElementById('lbl1').textContent = d1+' m';
+  document.getElementById('lbl2').textContent = d2+' m';
+  document.getElementById('lbl3').textContent = d3+' m';
+  const dr = calcDR();
+  document.getElementById('fline').textContent = `= √(${d1}² + ${d2}² + ${d3}²)`;
+  document.getElementById('fres').textContent = dr.toFixed(1)+' m';
+  const ang = Math.atan2(d2, d1)*180/Math.PI;
+  document.getElementById('angpill').textContent = `θ = ${ang.toFixed(1)}°`;
+}
+
+function onSlider() {
+  d1 = +document.getElementById('s1').value;
+  d2 = +document.getElementById('s2').value;
+  d3 = +document.getElementById('s3').value;
+  draw();
+}
+
+function toggleResult() {
+  resultOpen = !resultOpen; showResult = resultOpen;
+  document.getElementById('rbody').classList.toggle('open', resultOpen);
+  document.getElementById('ricon').classList.toggle('open', resultOpen);
+  draw();
+}
+
+function resetAll() {
+  d1=150; d2=150; d3=0;
+  document.getElementById('s1').value=150;
+  document.getElementById('s2').value=150;
+  document.getElementById('s3').value=0;
+  camYaw=-0.5; camPitch=0.38; camZoom=1.0;
+  draw();
+}
+
+canvas.addEventListener('mousedown', e=>{ dragging=true; lastMX=e.clientX; lastMY=e.clientY; });
+window.addEventListener('mouseup', ()=>{ dragging=false; });
+window.addEventListener('mousemove', e=>{
+  if (!dragging) return;
+  camYaw += (e.clientX-lastMX)*0.013;
+  camPitch -= (e.clientY-lastMY)*0.013;
+  camPitch = Math.max(-1.3, Math.min(1.3, camPitch));
+  lastMX=e.clientX; lastMY=e.clientY; draw();
+});
+canvas.addEventListener('wheel', e=>{ e.preventDefault(); camZoom *= e.deltaY>0?0.93:1.07; camZoom=Math.max(0.4,Math.min(2.5,camZoom)); draw(); }, {passive:false});
+canvas.addEventListener('touchstart', e=>{ if(e.touches.length===1){dragging=true; lastMX=e.touches[0].clientX; lastMY=e.touches[0].clientY;} },{passive:true});
+window.addEventListener('touchend', ()=>{ dragging=false; });
+window.addEventListener('touchmove', e=>{
+  if(!dragging||e.touches.length!==1) return;
+  camYaw += (e.touches[0].clientX-lastMX)*0.013;
+  camPitch -= (e.touches[0].clientY-lastMY)*0.013;
+  camPitch=Math.max(-1.3,Math.min(1.3,camPitch));
+  lastMX=e.touches[0].clientX; lastMY=e.touches[0].clientY; draw();
+},{passive:true});
+
+/* ════════════════════════════════════════════
+   2D CARTESIAN PLANE SIMULATOR
+════════════════════════════════════════════ */
+const cart = document.getElementById('cart2d');
+const ctx2 = cart.getContext('2d');
+
+let vectors2D = [];
+let selectedVec = -1;
+let pickedColor = '#4f8ef7';
+let showResultant = true;
+let vecCounter = 0;
+
+// Color picker
+document.querySelectorAll('.color-opt').forEach(el => {
+  el.addEventListener('click', () => {
+    document.querySelectorAll('.color-opt').forEach(x => x.classList.remove('active'));
+    el.classList.add('active');
+    pickedColor = el.dataset.color;
+  });
+});
+
+function addVector2D() {
+  const mag = parseFloat(document.getElementById('inMag').value) || 100;
+  const ang = parseFloat(document.getElementById('inAng').value) || 0;
+  const ox  = parseFloat(document.getElementById('inOriX').value) || 0;
+  const oy  = parseFloat(document.getElementById('inOriY').value) || 0;
+  vecCounter++;
+  vectors2D.push({
+    id: vecCounter,
+    mag: Math.max(1, Math.min(400, mag)),
+    ang: ang,
+    ox: ox,
+    oy: oy,
+    color: pickedColor,
+    name: `V${vecCounter}`
+  });
+  selectedVec = vectors2D.length - 1;
+  renderVecList();
+  draw2D();
+  showEditSection();
+}
+
+function removeVector(idx) {
+  vectors2D.splice(idx, 1);
+  if (selectedVec >= vectors2D.length) selectedVec = vectors2D.length - 1;
+  renderVecList();
+  draw2D();
+  showEditSection();
+}
+
+function selectVec(idx) {
+  selectedVec = idx;
+  renderVecList();
+  showEditSection();
+  draw2D();
+}
+
+function showEditSection() {
+  const sec = document.getElementById('editSection');
+  if (selectedVec >= 0 && selectedVec < vectors2D.length) {
+    sec.classList.add('active');
+    const v = vectors2D[selectedVec];
+    document.getElementById('editMag').value = v.mag;
+    document.getElementById('editAng').value = v.ang;
+    document.getElementById('editOriX').value = v.ox || 0;
+    document.getElementById('editOriY').value = v.oy || 0;
+    updateEditComponents();
+  } else {
+    sec.classList.remove('active');
+  }
+}
+
+function updateSelected() {
+  if (selectedVec < 0 || selectedVec >= vectors2D.length) return;
+  const mag = parseFloat(document.getElementById('editMag').value) || 1;
+  const ang = parseFloat(document.getElementById('editAng').value) || 0;
+  const ox  = parseFloat(document.getElementById('editOriX').value) || 0;
+  const oy  = parseFloat(document.getElementById('editOriY').value) || 0;
+  vectors2D[selectedVec].mag = Math.max(1, Math.min(400, mag));
+  vectors2D[selectedVec].ang = ang;
+  vectors2D[selectedVec].ox = ox;
+  vectors2D[selectedVec].oy = oy;
+  updateEditComponents();
+  renderVecList();
+  draw2D();
+}
+
+function updateEditComponents() {
+  if (selectedVec < 0 || selectedVec >= vectors2D.length) return;
+  const v = vectors2D[selectedVec];
+  const r = v.ang * Math.PI / 180;
+  document.getElementById('editVx').textContent = (v.mag * Math.cos(r)).toFixed(1);
+  document.getElementById('editVy').textContent = (v.mag * Math.sin(r)).toFixed(1);
+}
+
+function renderVecList() {
+  const list = document.getElementById('vecList');
+  document.getElementById('vecCount').textContent = vectors2D.length ? `(${vectors2D.length})` : '';
+  if (!vectors2D.length) {
+    list.innerHTML = '<div class="vec-empty">Nenhum vetor adicionado ainda.</div>';
+    return;
+  }
+  list.innerHTML = vectors2D.map((v, i) => {
+    const r = v.ang * Math.PI / 180;
+    const vx = (v.mag * Math.cos(r)).toFixed(1);
+    const vy = (v.mag * Math.sin(r)).toFixed(1);
+    const ox = v.ox || 0, oy = v.oy || 0;
+    const originStr = (ox !== 0 || oy !== 0) ? ` · origem(${ox},${oy})` : '';
+    return `<div class="vec-item${i===selectedVec?' selected':''}" onclick="selectVec(${i})">
+      <div class="vec-dot" style="background:${v.color}"></div>
+      <div class="vec-info">
+        <div class="vec-name" style="color:${v.color}">${v.name}</div>
+        <div class="vec-details">|V|=${v.mag} · θ=${v.ang}° · (${vx}, ${vy})${originStr}</div>
+      </div>
+      <button class="vec-del" onclick="event.stopPropagation();removeVector(${i})">✕</button>
+    </div>`;
+  }).join('');
+}
+
+function calcResultant2D() {
+  let rx = 0, ry = 0;
+  vectors2D.forEach(v => {
+    const r = v.ang * Math.PI / 180;
+    rx += v.mag * Math.cos(r);
+    ry += v.mag * Math.sin(r);
+  });
+  return { rx, ry };
+}
+
+function updateResultant2D() {
+  if (!vectors2D.length) {
+    ['res2Rx','res2Ry','res2Mod','res2Ang','res2Formula'].forEach(id => {
+      document.getElementById(id).textContent = '—';
+    });
+    return;
+  }
+  const { rx, ry } = calcResultant2D();
+  const mod = Math.sqrt(rx*rx + ry*ry);
+  const ang = Math.atan2(ry, rx) * 180 / Math.PI;
+  document.getElementById('res2Rx').textContent = rx.toFixed(2) + ' u';
+  document.getElementById('res2Ry').textContent = ry.toFixed(2) + ' u';
+  document.getElementById('res2Mod').textContent = mod.toFixed(2) + ' u';
+  document.getElementById('res2Ang').textContent = ang.toFixed(1) + '°';
+  const formula = vectors2D.map(v=>`${v.mag}∠${v.ang}°`).join(' + ');
+  document.getElementById('res2Formula').textContent = `R = ${formula}`;
+}
+
+function toggleResultant() {
+  showResultant = !showResultant;
+  document.getElementById('btnResultant').textContent = showResultant ? '👁 Resultante' : '🙈 Resultante';
+  draw2D();
+}
+
+function clearVectors2D() {
+  vectors2D = [];
+  selectedVec = -1;
+  renderVecList();
+  draw2D();
+  document.getElementById('editSection').classList.remove('active');
+}
+
+function draw2D() {
+  cart.width = cart.offsetWidth;
+  cart.height = cart.offsetHeight || 460;
+  const W = cart.width, H = cart.height;
+  ctx2.clearRect(0, 0, W, H);
+
+  const cx = W / 2, cy = H / 2;
+  // Find scale based on largest vector or default
+  const maxMag = vectors2D.length ? Math.max(...vectors2D.map(v=>v.mag)) : 200;
+  const padding = 60;
+  const scale = Math.min((W/2 - padding), (H/2 - padding)) / maxMag;
+
+  // ── Grid ──
+  const gridStep = scale * 50;
+  ctx2.strokeStyle = 'rgba(255,255,255,0.04)';
+  ctx2.lineWidth = 1;
+  for (let x = cx % gridStep; x < W; x += gridStep) {
+    ctx2.beginPath(); ctx2.moveTo(x, 0); ctx2.lineTo(x, H); ctx2.stroke();
+  }
+  for (let y = cy % gridStep; y < H; y += gridStep) {
+    ctx2.beginPath(); ctx2.moveTo(0, y); ctx2.lineTo(W, y); ctx2.stroke();
+  }
+
+  // ── Axes ──
+  ctx2.strokeStyle = 'rgba(255,255,255,0.18)';
+  ctx2.lineWidth = 1.5;
+  ctx2.beginPath(); ctx2.moveTo(0, cy); ctx2.lineTo(W, cy); ctx2.stroke();
+  ctx2.beginPath(); ctx2.moveTo(cx, 0); ctx2.lineTo(cx, H); ctx2.stroke();
+
+  // Axis labels
+  ctx2.font = '12px Sora, sans-serif';
+  ctx2.fillStyle = 'rgba(255,255,255,0.25)';
+  ctx2.textAlign = 'center';
+  ctx2.fillText('+X', W - 16, cy - 8);
+  ctx2.fillText('-X', 16, cy - 8);
+  ctx2.fillText('+Y', cx + 12, 16);
+  ctx2.fillText('-Y', cx + 12, H - 8);
+
+  // Axis ticks
+  ctx2.strokeStyle = 'rgba(255,255,255,0.1)';
+  ctx2.lineWidth = 1;
+  const tickUnit = 50;
+  const screenTick = tickUnit * scale;
+  if (screenTick > 20) {
+    for (let t = screenTick; cx+t < W-10; t += screenTick) {
+      ctx2.beginPath(); ctx2.moveTo(cx+t, cy-4); ctx2.lineTo(cx+t, cy+4); ctx2.stroke();
+      ctx2.beginPath(); ctx2.moveTo(cx-t, cy-4); ctx2.lineTo(cx-t, cy+4); ctx2.stroke();
+      ctx2.beginPath(); ctx2.moveTo(cx-4, cy-t); ctx2.lineTo(cx+4, cy-t); ctx2.stroke();
+      ctx2.beginPath(); ctx2.moveTo(cx-4, cy+t); ctx2.lineTo(cx+4, cy+t); ctx2.stroke();
+      ctx2.font = '9px DM Mono, monospace';
+      ctx2.fillStyle = 'rgba(255,255,255,0.2)';
+      ctx2.textAlign = 'center';
+      const n = Math.round(t/screenTick)*tickUnit;
+      ctx2.fillText(n, cx+t, cy+14);
+      ctx2.fillText(-n, cx-t, cy+14);
+      ctx2.textAlign = 'right';
+      ctx2.fillText(n, cx-8, cy-t+4);
+      ctx2.fillText(-n, cx-8, cy+t+4);
+    }
+  }
+
+  // ── Draw each vector ──
+  vectors2D.forEach((v, i) => {
+    const r = v.ang * Math.PI / 180;
+    // Starting point: origin offset by (ox, oy) in world units → screen pixels
+    const sx = cx + (v.ox || 0) * scale;
+    const sy = cy - (v.oy || 0) * scale;
+    const ex = sx + v.mag * Math.cos(r) * scale;
+    const ey = sy - v.mag * Math.sin(r) * scale;
+    // Draw small dot at application point if not at origin
+    if ((v.ox || 0) !== 0 || (v.oy || 0) !== 0) {
+      ctx2.beginPath();
+      ctx2.arc(sx, sy, 5, 0, Math.PI*2);
+      ctx2.fillStyle = v.color;
+      ctx2.globalAlpha = 0.5;
+      ctx2.fill();
+      ctx2.globalAlpha = 1;
+      // Dashed line from origin to application point
+      ctx2.save();
+      ctx2.setLineDash([3,4]);
+      ctx2.strokeStyle = v.color;
+      ctx2.globalAlpha = 0.22;
+      ctx2.lineWidth = 1;
+      ctx2.beginPath();
+      ctx2.moveTo(cx, cy);
+      ctx2.lineTo(sx, sy);
+      ctx2.stroke();
+      ctx2.setLineDash([]);
+      ctx2.globalAlpha = 1;
+      ctx2.restore();
+      // Label application point
+      ctx2.font = '9px DM Mono, monospace';
+      ctx2.fillStyle = v.color;
+      ctx2.globalAlpha = 0.6;
+      ctx2.textAlign = 'center';
+      ctx2.fillText(`(${v.ox},${v.oy})`, sx, sy - 9);
+      ctx2.globalAlpha = 1;
+    }
+    drawArrow2D(sx, sy, ex, ey, v.color, v.name, i === selectedVec);
+  });
+
+  // ── Arc for selected vector angle ──
+  if (selectedVec >= 0 && selectedVec < vectors2D.length) {
+    const v = vectors2D[selectedVec];
+    const sx = cx + (v.ox||0) * scale;
+    const sy = cy - (v.oy||0) * scale;
+    const arcR = 32;
+    ctx2.strokeStyle = v.color;
+    ctx2.lineWidth = 1.5;
+    ctx2.globalAlpha = 0.4;
+    ctx2.beginPath();
+    ctx2.arc(sx, sy, arcR, 0, -v.ang * Math.PI / 180, v.ang < 0);
+    ctx2.stroke();
+    ctx2.globalAlpha = 1;
+    const mid = (-v.ang / 2) * Math.PI / 180;
+    const lx = sx + (arcR+14) * Math.cos(mid);
+    const ly = sy + (arcR+14) * Math.sin(mid);
+    ctx2.font = 'bold 11px DM Mono, monospace';
+    ctx2.fillStyle = v.color;
+    ctx2.textAlign = 'center';
+    ctx2.fillText(`${v.ang}°`, lx, ly);
+  }
+
+  // ── Resultant ──
+  if (showResultant && vectors2D.length > 1) {
+    const { rx, ry } = calcResultant2D();
+    const ex = cx + rx * scale;
+    const ey = cy - ry * scale;
+    ctx2.save();
+    ctx2.setLineDash([6, 3]);
+    drawArrow2D(cx, cy, ex, ey, '#f25757', 'R', false, true);
+    ctx2.setLineDash([]);
+    ctx2.restore();
+  }
+
+  // ── Origin dot ──
+  ctx2.beginPath();
+  ctx2.arc(cx, cy, 4, 0, Math.PI*2);
+  ctx2.fillStyle = 'rgba(255,255,255,0.4)';
+  ctx2.fill();
+  ctx2.font = '10px Sora, sans-serif';
+  ctx2.fillStyle = 'rgba(255,255,255,0.25)';
+  ctx2.textAlign = 'left';
+  ctx2.fillText('O', cx+7, cy-5);
+
+  ctx2.textAlign = 'left';
+  updateResultant2D();
+}
+
+function drawArrow2D(x1, y1, x2, y2, color, label, selected, isResultant) {
+  const dx = x2-x1, dy = y2-y1, len = Math.hypot(dx, dy);
+  if (len < 4) return;
+  const ux = dx/len, uy = dy/len, hl = 13;
+
+  ctx2.save();
+  ctx2.strokeStyle = color; ctx2.fillStyle = color;
+  ctx2.lineWidth = selected ? 3 : (isResultant ? 2.5 : 2);
+  ctx2.lineCap = 'round';
+  if (selected) {
+    ctx2.shadowColor = color; ctx2.shadowBlur = 10;
+  }
+
+  ctx2.beginPath(); ctx2.moveTo(x1, y1); ctx2.lineTo(x2 - ux*hl, y2 - uy*hl); ctx2.stroke();
+
+  // Arrowhead
+  ctx2.shadowBlur = 0;
+  ctx2.beginPath();
+  ctx2.moveTo(x2, y2);
+  ctx2.lineTo(x2 - ux*hl - uy*6, y2 - uy*hl + ux*6);
+  ctx2.lineTo(x2 - ux*hl + uy*6, y2 - uy*hl - ux*6);
+  ctx2.closePath(); ctx2.fill();
+
+  // Endpoint dot
+  ctx2.beginPath(); ctx2.arc(x2, y2, 3, 0, Math.PI*2);
+  ctx2.fill();
+
+  // Label
+  const lx = x1 + dx*0.55 + (-uy)*14;
+  const ly = y1 + dy*0.55 + ux*14;
+  ctx2.font = `bold 12px Sora, sans-serif`;
+  ctx2.textAlign = 'center';
+  ctx2.fillStyle = color;
+  ctx2.fillText(label, lx, ly);
+
+  ctx2.restore();
+}
+
+window.addEventListener('resize', () => { draw(); draw2D(); });
+
+// Live preview of application point badge
+['inOriX','inOriY'].forEach(id => {
+  document.getElementById(id).addEventListener('input', () => {
+    const ix = parseFloat(document.getElementById('inOriX').value) || 0;
+    const iy = parseFloat(document.getElementById('inOriY').value) || 0;
+    document.getElementById('inOriPreview').textContent = `Início: (${ix}, ${iy})`;
+  });
+});
+
+function showMainTab(name, btn) {
+  document.querySelectorAll('.main-tab-pane').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.main-tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('mtab-'+name).classList.add('active');
+  btn.classList.add('active');
+  if (name === 'sim') { draw(); draw2D(); }
+}
+
+draw();
+draw2D();
+</script>
+</body>
+</html>

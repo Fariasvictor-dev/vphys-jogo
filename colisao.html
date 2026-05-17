@@ -1,0 +1,951 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<title>V-PHYS | Colisões — Momento & Energia</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{
+  --verde:#2ecc71;--azul:#3498db;--verm:#e74c3c;--amarelo:#f1c40f;
+  --bg:#060d09;--panel:#0d1a10;--panel2:#111e13;
+  --border:rgba(46,204,113,.16);--text:#dff0e6;--dim:rgba(223,240,230,.46);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Outfit',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding:16px 14px 40px;display:flex;flex-direction:column;align-items:center}
+
+/* HEADER */
+.hdr{width:100%;max-width:1120px;display:flex;justify-content:space-between;align-items:flex-end;border-bottom:1px solid var(--verde);padding-bottom:11px;margin-bottom:16px}
+.hdr-l{display:flex;flex-direction:column;gap:4px}
+.badge{background:var(--verde);color:#000;padding:3px 10px;border-radius:4px;font-weight:700;font-size:.7rem;letter-spacing:.08em;display:inline-block}
+.hdr h2{font-size:1.25rem;font-weight:600;letter-spacing:-.01em}
+.brand{color:var(--verde);font-family:'Space Mono',monospace;font-size:.7rem;letter-spacing:.12em}
+.hdr-formula{font-family:'Space Mono',monospace;font-size:.75rem;color:var(--azul);text-align:right}
+
+/* TABS */
+.tabs{width:100%;max-width:1120px;display:flex;gap:4px;margin-bottom:14px}
+.tab-btn{padding:7px 18px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--dim);cursor:pointer;font-family:'Outfit',sans-serif;font-size:.8rem;transition:all .18s}
+.tab-btn.active{background:var(--verde);color:#000;font-weight:700;border-color:var(--verde)}
+.tab-btn:hover:not(.active){border-color:var(--verde);color:var(--text)}
+.tab-content{display:none;width:100%;max-width:1120px}
+.tab-content.active{display:block}
+
+/* LAYOUT */
+.main{display:flex;gap:14px;width:100%}
+
+/* CONTROLS */
+.ctrl{background:var(--panel);padding:18px;border-radius:12px;width:300px;flex-shrink:0;border:1px solid var(--border);display:flex;flex-direction:column;gap:10px}
+.cg{background:rgba(255,255,255,.025);padding:11px;border-radius:8px}
+.cg label{display:block;font-size:.76rem;color:var(--verde);font-weight:700;margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em}
+.cg select,.cg input[type=range]{width:100%;background:#090f0a;color:var(--text);border:1px solid rgba(46,204,113,.2);padding:6px 8px;border-radius:5px;font-family:'Outfit',sans-serif;font-size:.8rem;cursor:pointer}
+.cg .val{font-family:'Space Mono',monospace;color:var(--verde);font-size:.88rem}
+.cg-sub{font-size:.7rem;color:var(--dim);margin-top:5px;line-height:1.5}
+
+/* CAR SLIDERS */
+.car-slider{display:flex;flex-direction:column;gap:6px}
+.cs-row{display:flex;align-items:center;gap:8px}
+.cs-label{font-size:.72rem;color:var(--dim);width:28px;flex-shrink:0}
+.cs-val{font-family:'Space Mono',monospace;font-size:.8rem;width:52px;text-align:right;flex-shrink:0}
+
+.btn-go{background:var(--verde);color:#000;border:none;padding:11px;border-radius:7px;font-weight:700;cursor:pointer;width:100%;font-family:'Outfit',sans-serif;font-size:.88rem;letter-spacing:.04em;transition:all .18s}
+.btn-go:hover{filter:brightness(1.12)}
+.btn-rst{background:transparent;color:var(--dim);border:1px solid var(--border);padding:9px;border-radius:7px;cursor:pointer;font-family:'Outfit',sans-serif;font-size:.8rem;width:100%;transition:all .18s}
+.btn-rst:hover{border-color:var(--verde);color:var(--text)}
+
+/* RIGHT PANEL */
+.right{flex:1;min-width:0;display:flex;flex-direction:column;gap:12px}
+
+/* THREE.JS CANVAS */
+#canvas3d{width:100%;border-radius:12px;border:1px solid var(--border);display:block;cursor:grab}
+#canvas3d:active{cursor:grabbing}
+
+/* PHYSICS CARDS */
+.phys-row{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.pc{background:var(--panel2);border-radius:8px;padding:10px 12px;border:1px solid var(--border)}
+.pc .pl{font-size:.62rem;text-transform:uppercase;letter-spacing:.07em;color:var(--dim)}
+.pc .pv{font-family:'Space Mono',monospace;font-size:.95rem;font-weight:700;margin-top:2px}
+.pc-p1{color:var(--azul)} .pc-p2{color:var(--verm)} .pc-e{color:var(--amarelo)} .pc-loss{color:#fd79a8}
+
+/* MOMENTUM CONSERVATION BAR */
+.conserv-wrap{background:var(--panel2);border-radius:8px;padding:12px;border:1px solid var(--border)}
+.conserv-label{font-size:.72rem;text-transform:uppercase;letter-spacing:.07em;color:var(--dim);margin-bottom:8px}
+.conserv-bar-bg{height:10px;border-radius:5px;background:rgba(255,255,255,.06);position:relative;overflow:hidden}
+.conserv-bar-fill{height:100%;border-radius:5px;transition:width .4s ease;background:linear-gradient(90deg,var(--verde),var(--amarelo))}
+.conserv-nums{display:flex;justify-content:space-between;margin-top:5px;font-family:'Space Mono',monospace;font-size:.68rem;color:var(--dim)}
+
+/* FORMULA CARD */
+.formula-card{background:#000;border-left:3px solid var(--azul);padding:12px 14px;border-radius:0 6px 6px 0;font-family:'Space Mono',monospace;font-size:.78rem;line-height:1.8;color:var(--dim)}
+.formula-card b{color:var(--text)}
+.formula-card #desc-fisica{color:var(--amarelo)}
+
+/* CHARTS TABS */
+.chart-panel{background:var(--panel2);border-radius:10px;padding:14px;border:1px solid var(--border)}
+.chart-tabs{display:flex;gap:5px;margin-bottom:12px}
+.ctab{padding:5px 16px;border-radius:5px;border:1px solid var(--border);background:transparent;color:var(--dim);cursor:pointer;font-family:'Outfit',sans-serif;font-size:.78rem;transition:all .15s}
+.ctab.active{background:rgba(46,204,113,.15);border-color:var(--verde);color:var(--verde);font-weight:700}
+.ctab:hover:not(.active){border-color:var(--verde);color:var(--text)}
+.cpane{display:none}.cpane.active{display:block}
+.cpane canvas{width:100%!important}
+/* DAMAGE BADGE */
+.dmg-badge{display:inline-block;padding:3px 9px;border-radius:4px;font-size:.72rem;font-weight:700;font-family:'Space Mono',monospace;margin-left:6px;vertical-align:middle}
+.dmg-0{background:rgba(46,204,113,.18);color:#2ecc71}
+.dmg-1{background:rgba(241,196,15,.18);color:#f1c40f}
+.dmg-2{background:rgba(231,76,60,.18);color:#e74c3c}
+.dmg-3{background:rgba(200,0,0,.25);color:#ff4444;animation:dmgPulse .6s ease-in-out infinite}
+@keyframes dmgPulse{0%,100%{opacity:1}50%{opacity:.5}}
+
+/* ── GUIDE ── */
+.guide-hero{background:linear-gradient(135deg,#0c1d10,#0f2416);border:1px solid var(--border);border-radius:14px;padding:28px 32px;margin-bottom:16px}
+.guide-hero h3{margin:0 0 8px;font-size:1.1rem;color:var(--verde)}
+.guide-hero p{margin:0;color:var(--dim);line-height:1.7;font-size:.87rem}
+.gg{display:grid;grid-template-columns:repeat(auto-fit,minmax(265px,1fr));gap:12px;margin-bottom:16px}
+.gcard{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:18px}
+.gcard .gi{font-size:1.5rem;margin-bottom:7px}
+.gcard h4{margin:0 0 6px;font-size:.88rem;color:var(--verde)}
+.gcard p,.gcard li{font-size:.8rem;color:var(--dim);line-height:1.6;margin:0}
+.gcard ul{padding-left:14px;margin-top:5px}
+.gcard li{margin-bottom:3px}
+.gtable{width:100%;border-collapse:collapse;background:var(--panel);border-radius:12px;overflow:hidden;border:1px solid var(--border);margin-bottom:16px}
+.gtable th{background:rgba(46,204,113,.09);padding:10px 14px;font-size:.74rem;text-align:left;letter-spacing:.05em;text-transform:uppercase;color:var(--verde);border-bottom:1px solid var(--border)}
+.gtable td{padding:9px 14px;font-size:.8rem;border-bottom:1px solid rgba(46,204,113,.06);color:var(--dim)}
+.gtable tr:last-child td{border-bottom:none}
+.gtable td:first-child{font-family:'Space Mono',monospace;color:var(--text);font-size:.74rem}
+.fml-row{display:flex;gap:10px;flex-wrap:wrap}
+.fml{background:rgba(0,0,0,.3);border-left:3px solid var(--verde);border-radius:0 6px 6px 0;padding:9px 14px;font-family:'Space Mono',monospace;font-size:.8rem;color:var(--verde);flex:1;min-width:200px}
+.fml span{display:block;font-family:'Outfit',sans-serif;font-size:.68rem;color:var(--dim);margin-top:3px}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <div class="hdr-l">
+    <span class="badge">1º–2º ANO · DINÂMICA</span>
+    <h2>Simulador 3D de Colisões — Momento Linear & Energia</h2>
+  </div>
+  <div>
+    <div class="brand">V-PHYS</div>
+    <div class="hdr-formula">p = m·v &nbsp;|&nbsp; Ec = ½mv²</div>
+  </div>
+</div>
+
+<div class="tabs">
+  <button class="tab-btn active" onclick="showTab('sim',this)">⚡ Simulador 3D</button>
+  <button class="tab-btn" onclick="showTab('guide',this)">📖 Como Usar</button>
+</div>
+
+<!-- ══ SIMULADOR ══ -->
+<div class="tab-content active" id="tab-sim">
+<div class="main">
+
+  <!-- CONTROLS -->
+  <div class="ctrl">
+    <div class="cg">
+      <label>⚙️ Tipo de Colisão</label>
+      <select id="col-type" onchange="setup()">
+        <option value="HEAD_ON">Frente a Frente</option>
+        <option value="REAR">Batida Traseira</option>
+        <option value="SAME">Mesmo Sentido</option>
+      </select>
+    </div>
+
+    <div class="cg">
+      <label>🎯 Coeficiente de Restituição (e)</label>
+      <select id="rest" onchange="setup()">
+        <option value="0">Inelástica Perfeita (e=0) — grudam</option>
+        <option value="0.5">Parcialmente Inelástica (e=0.5)</option>
+        <option value="1">Elástica Perfeita (e=1) — ressaltam</option>
+      </select>
+      <div class="cg-sub" id="rest-desc">Os corpos fundem-se após o impacto. Máxima perda de energia cinética.</div>
+    </div>
+
+    <!-- CAR A -->
+    <div class="cg">
+      <label style="color:var(--azul)">🔵 Carro A (Azul)</label>
+      <div class="car-slider">
+        <div class="cs-row">
+          <span class="cs-label">Massa</span>
+          <input type="range" id="mA" min="50" max="5000" step="50" value="1000" oninput="updateLabels()">
+          <span class="cs-val" id="mA-v">1000 kg</span>
+        </div>
+        <div class="cs-row">
+          <span class="cs-label">Vel.</span>
+          <input type="range" id="vA" min="5" max="120" value="40" oninput="updateLabels()">
+          <span class="cs-val" id="vA-v">40 m/s</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- CAR B -->
+    <div class="cg">
+      <label style="color:var(--verm)">🔴 Carro B (Vermelho)</label>
+      <div class="car-slider">
+        <div class="cs-row">
+          <span class="cs-label">Massa</span>
+          <input type="range" id="mB" min="50" max="5000" step="50" value="1000" oninput="updateLabels()">
+          <span class="cs-val" id="mB-v">1000 kg</span>
+        </div>
+        <div class="cs-row">
+          <span class="cs-label">Vel.</span>
+          <input type="range" id="vB" min="5" max="120" value="40" oninput="updateLabels()">
+          <span class="cs-val" id="vB-v">40 m/s</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="formula-card">
+      <b>Conservação do Momento:</b><br>
+      m₁v₁ + m₂v₂ = m₁v₁' + m₂v₂'<br>
+      <hr style="border:0;border-top:1px solid #222;margin:7px 0">
+      <span id="desc-fisica">Configure e dispare.</span>
+    </div>
+
+    <div class="cg">
+      <label>🐢 Velocidade da Simulação</label>
+      <div class="car-slider">
+        <div class="cs-row">
+          <span class="cs-label" style="width:auto;font-size:.7rem">Lento</span>
+          <input type="range" id="simSpeed" min="1" max="10" step="1" value="5" style="flex:1" oninput="document.getElementById('simSpeed-v').textContent=simSpeedLabel(this.value)">
+          <span class="cs-label" style="width:auto;font-size:.7rem">Rápido</span>
+        </div>
+        <div style="text-align:center;margin-top:2px">
+          <span class="cs-val" id="simSpeed-v">Normal</span>
+        </div>
+      </div>
+      <div class="cg-sub">Reduza para ver o impacto em câmera lenta.</div>
+    </div>
+
+    <button class="btn-go" onclick="startCollision()">💥 SIMULAR IMPACTO</button>
+    <button class="btn-go" style="background:var(--azul);margin-top:4px" onclick="startSlowMo()">🐢 CÂMERA LENTA</button>
+    <button class="btn-rst" onclick="setup()">↺ Resetar</button>
+  </div>
+
+  <!-- RIGHT -->
+  <div class="right">
+    <canvas id="canvas3d" height="340"></canvas>
+
+    <!-- PHYSICS CARDS -->
+    <div class="phys-row">
+      <div class="pc"><div class="pl">Momento A (antes)</div><div class="pv pc-p1" id="pc-pA">—</div></div>
+      <div class="pc"><div class="pl">Momento B (antes)</div><div class="pv pc-p2" id="pc-pB">—</div></div>
+      <div class="pc"><div class="pl">Ec Total (antes)</div><div class="pv pc-e" id="pc-ec">—</div></div>
+      <div class="pc"><div class="pl">Perda Ec (impacto)</div><div class="pv pc-loss" id="pc-loss">—</div></div>
+    </div>
+
+    <!-- MOMENTUM CONSERVATION -->
+    <div class="conserv-wrap">
+      <div class="conserv-label">Conservação do Momento Linear — Antes vs Depois</div>
+      <div class="conserv-bar-bg">
+        <div class="conserv-bar-fill" id="conserv-bar" style="width:0%"></div>
+      </div>
+      <div class="conserv-nums">
+        <span id="cn-before">Antes: — kg·m/s</span>
+        <span id="cn-after">Depois: — kg·m/s</span>
+      </div>
+    </div>
+
+    <!-- DAMAGE INDICATORS -->
+    <div class="phys-row" id="dmg-row" style="display:none">
+      <div class="pc"><div class="pl">Dano Carro A</div><div class="pv" id="dmg-a-label">—</div></div>
+      <div class="pc"><div class="pl">Dano Carro B</div><div class="pv" id="dmg-b-label">—</div></div>
+      <div class="pc" style="grid-column:span 2"><div class="pl">Força de Impacto Relativa</div><div class="pv pc-e" id="dmg-force">—</div></div>
+    </div>
+
+    <!-- CHARTS TABBED -->
+    <div class="chart-panel">
+      <div class="chart-tabs">
+        <button class="ctab active" onclick="switchChart('E',this)">⚡ Energia Cinética</button>
+        <button class="ctab" onclick="switchChart('P',this)">⚖️ Momento Linear</button>
+      </div>
+      <div class="cpane active" id="cpane-E"><canvas id="chartE" height="150"></canvas></div>
+      <div class="cpane" id="cpane-P"><canvas id="chartP" height="150"></canvas></div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ══ GUIA ══ -->
+<div class="tab-content" id="tab-guide">
+  <div class="guide-hero">
+    <h3>📖 Como usar o Simulador de Colisões 3D</h3>
+    <p>Este simulador modela colisões entre dois corpos usando as leis de conservação do <strong style="color:var(--verde)">Momento Linear</strong> e analisa a <strong style="color:var(--amarelo)">Energia Cinética</strong> antes e depois do impacto. O cenário é renderizado em 3D via Three.js — arraste o mouse sobre a cena para rodar a câmera.</p>
+  </div>
+  <div class="gg">
+    <div class="gcard"><div class="gi">⚙️</div><h4>1. Tipo de Colisão</h4><p>Controla a direção inicial dos corpos. <em>Frente a Frente</em> gera o maior choque relativo. <em>Traseira</em> usa o carro B parado. <em>Mesmo Sentido</em> é uma ultrapassagem com alcance.</p></div>
+    <div class="gcard"><div class="gi">🎯</div><h4>2. Coeficiente de Restituição (e)</h4><ul><li><strong style="color:var(--verde)">e = 1</strong>: Elástica — os carros ressaltam e a Ec total é conservada.</li><li><strong style="color:var(--amarelo)">e = 0.5</strong>: Parcialmente inelástica — parte da energia vira calor.</li><li><strong style="color:var(--verm)">e = 0</strong>: Inelástica perfeita — os carros grudam e se movem juntos.</li></ul></div>
+    <div class="gcard"><div class="gi">⚖️</div><h4>3. Massa e Velocidade</h4><p>Ajuste independentemente a massa (500–3000 kg) e velocidade (5–120 m/s) de cada carro. O impacto da massa é especialmente notável na colisão entre corpos assimétricos: um caminhão de 3000 kg bate num Mini de 500 kg e este voa.</p></div>
+    <div class="gcard"><div class="gi">📊</div><h4>4. Gráfico de Energia</h4><p>O gráfico de barras mostra a Ec de cada carro antes e depois. Observe como a barra "Depois" é menor — essa diferença é a <strong style="color:#fd79a8">Perda de Ec</strong>, transformada em calor, som e deformação.</p></div>
+    <div class="gcard"><div class="gi">⬛</div><h4>5. Barra de Conservação</h4><p>O Momento Linear total é sempre conservado (a barra deve manter-se ao mesmo nível antes e depois). Se os valores diferirem levemente, é efeito do arredondamento da visualização.</p></div>
+    <div class="gcard"><div class="gi">🖱️</div><h4>6. Câmera 3D</h4><p>Clique e arraste sobre a cena para rodar a câmera e ver o impacto de diferentes ângulos. Use scroll para zoom. A pista, os carros e a explosão são todos objetos Three.js.</p></div>
+  </div>
+  <table class="gtable">
+    <thead><tr><th>Configuração</th><th>O que Observar</th><th>Conceito</th></tr></thead>
+    <tbody>
+      <tr><td>e=1, massas iguais, frente a frente</td><td>Carros trocam velocidades exatamente</td><td>Colisão elástica simétrica</td></tr>
+      <tr><td>e=0, massas iguais, frente a frente</td><td>Ambos param (momentum se cancela)</td><td>Inelástica — máxima perda</td></tr>
+      <tr><td>e=1, mA=3000 mB=500, traseira</td><td>Carro B acelera muito, A mal para</td><td>Transferência de momento</td></tr>
+      <tr><td>e=0.5, qualquer config</td><td>Perda parcial; carros ressaltam devagar</td><td>Colisão real (automóvel)</td></tr>
+    </tbody>
+  </table>
+  <div class="fml-row">
+    <div class="fml">p = m · v<span>Momento linear (kg·m/s)</span></div>
+    <div class="fml">Ec = ½ · m · v²<span>Energia cinética (J)</span></div>
+    <div class="fml">v₁' = ((m₁-e·m₂)v₁ + (1+e)m₂v₂) / (m₁+m₂)<span>Velocidade pós-colisão carro A</span></div>
+    <div class="fml">ΔEc = Ec_antes − Ec_depois<span>Energia dissipada (J)</span></div>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════
+//  THREE.JS SCENE
+// ══════════════════════════════════════════════
+const canvas3d = document.getElementById('canvas3d');
+const renderer = new THREE.WebGLRenderer({canvas:canvas3d, antialias:true, alpha:true});
+renderer.setPixelRatio(window.devicePixelRatio);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x060d09);
+scene.fog = new THREE.Fog(0x060d09, 30, 90);
+
+const camera = new THREE.PerspectiveCamera(55, 2, 0.1, 200);
+camera.position.set(0, 10, 28);
+camera.lookAt(0, 0, 0);
+
+// Resize
+function resizeRenderer(){
+  const w=canvas3d.clientWidth, h=Math.round(w/2.4);
+  renderer.setSize(w, h, false);
+  camera.aspect = w/h;
+  camera.updateProjectionMatrix();
+}
+resizeRenderer();
+window.addEventListener('resize', resizeRenderer);
+
+// ── LIGHTS ──
+scene.add(new THREE.AmbientLight(0x1a2e1d, 1.2));
+const dirLight = new THREE.DirectionalLight(0xffffff, 1.4);
+dirLight.position.set(10, 20, 10);
+dirLight.castShadow = true;
+dirLight.shadow.mapSize.set(1024,1024);
+scene.add(dirLight);
+const pointL = new THREE.PointLight(0x2ecc71, 0.6, 40);
+pointL.position.set(-10,6,0);
+scene.add(pointL);
+
+// ── GROUND / ROAD ──
+const roadGeo = new THREE.BoxGeometry(80, 0.3, 8);
+const roadMat = new THREE.MeshStandardMaterial({color:0x1a2e1a, roughness:.9});
+const road = new THREE.Mesh(roadGeo, roadMat);
+road.receiveShadow = true;
+scene.add(road);
+
+// Road markings (dashed white lines)
+for(let i=-35;i<36;i+=5){
+  const m=new THREE.Mesh(
+    new THREE.BoxGeometry(2,.05,.2),
+    new THREE.MeshBasicMaterial({color:0x555555})
+  );
+  m.position.set(i,.2,0); scene.add(m);
+}
+
+// Kerb edges
+[-4.2,4.2].forEach(z=>{
+  const k=new THREE.Mesh(new THREE.BoxGeometry(80,.35,.4),new THREE.MeshStandardMaterial({color:0x2ecc71,emissive:0x2ecc71,emissiveIntensity:.15}));
+  k.position.set(0,.18,z); scene.add(k);
+});
+
+// ── BUILD CAR (3D) — with named damage parts ──
+function buildCar(colorHex){
+  const g = new THREE.Group();
+  g.userData.parts = {};
+  g.userData.damageLevel = 0;
+
+  // Body
+  const bodyM = new THREE.MeshStandardMaterial({color:colorHex,roughness:.35,metalness:.6});
+  const body = new THREE.Mesh(new THREE.BoxGeometry(3.6,1,1.8), bodyM);
+  body.castShadow=true; body.position.y=.5; g.add(body);
+  g.userData.parts.body=body; g.userData.parts.bodyMat=bodyM;
+
+  // Cabin
+  const cabinMat=new THREE.MeshStandardMaterial({color:colorHex,roughness:.3,metalness:.5});
+  const cabin = new THREE.Mesh(new THREE.BoxGeometry(2.1,.8,1.5), cabinMat);
+  cabin.position.set(-.2,1.3,0); cabin.castShadow=true; g.add(cabin);
+  g.userData.parts.cabin=cabin;
+
+  // Windshields
+  const glassMat=new THREE.MeshStandardMaterial({color:0x88ccff,roughness:.1,metalness:.1,transparent:true,opacity:.55});
+  const fWind=new THREE.Mesh(new THREE.BoxGeometry(.08,.72,1.38),glassMat.clone());
+  fWind.position.set(.84,1.32,0); g.add(fWind);
+  const rWind=new THREE.Mesh(new THREE.BoxGeometry(.08,.72,1.38),glassMat.clone());
+  rWind.position.set(-1.24,1.32,0); g.add(rWind);
+  g.userData.parts.fWind=fWind; g.userData.parts.rWind=rWind;
+
+  // Hood (front crumple zone)
+  const hoodMat=new THREE.MeshStandardMaterial({color:colorHex,roughness:.4,metalness:.5});
+  const hood=new THREE.Mesh(new THREE.BoxGeometry(.22,1,1.8),hoodMat);
+  hood.position.set(1.9,.5,0); g.add(hood);
+  g.userData.parts.hood=hood; g.userData.parts.hoodMat=hoodMat;
+
+  // Wheels (4) — individually tracked
+  const wheelMat=new THREE.MeshStandardMaterial({color:0x111111,roughness:.8});
+  const rimMat=new THREE.MeshStandardMaterial({color:0x888888,roughness:.3,metalness:.8});
+  g.userData.parts.wheels={};
+  [[1.2,.15,1.1,'fr'],[1.2,.15,-1.1,'fl'],[-1.2,.15,1.1,'rr'],[-1.2,.15,-1.1,'rl']].forEach(([x,y,z,name])=>{
+    const w=new THREE.Mesh(new THREE.CylinderGeometry(.38,.38,.3,18),wheelMat.clone());
+    w.rotation.x=Math.PI/2; w.position.set(x,y,z); w.castShadow=true; g.add(w);
+    const rim=new THREE.Mesh(new THREE.CylinderGeometry(.18,.18,.32,8),rimMat.clone());
+    rim.rotation.x=Math.PI/2; rim.position.set(x,y,z); g.add(rim);
+    g.userData.parts.wheels[name]={wheel:w,rim,basePos:new THREE.Vector3(x,y,z),ejected:false};
+  });
+
+  // Headlights
+  const hlM=new THREE.MeshStandardMaterial({color:0xffffff,emissive:0xffffcc,emissiveIntensity:1});
+  const headlights=[];
+  [[1.78,.55,.6],[1.78,.55,-.6]].forEach(([x,y,z])=>{
+    const hl=new THREE.Mesh(new THREE.BoxGeometry(.08,.18,.24),hlM.clone());
+    hl.position.set(x,y,z); g.add(hl); headlights.push(hl);
+  });
+  g.userData.parts.headlights=headlights;
+
+  // Taillights
+  const tlM=new THREE.MeshStandardMaterial({color:0xff2200,emissive:0xff2200,emissiveIntensity:.8});
+  [[-1.82,.55,.6],[-1.82,.55,-.6]].forEach(([x,y,z])=>{
+    const tl=new THREE.Mesh(new THREE.BoxGeometry(.08,.18,.24),tlM.clone());
+    tl.position.set(x,y,z); g.add(tl);
+  });
+
+  return g;
+}
+
+// ── DAMAGE SYSTEM ──
+const ejectedWheels=[];
+
+function applyDamage(car3d, impactForce, isCarA){
+  const parts=car3d.userData.parts;
+  let level=0;
+  if(impactForce>18) level=1;   // Light — scratches, cracked glass
+  if(impactForce>45) level=2;   // Medium — hood crumple, front tires fly
+  if(impactForce>85) level=3;   // Severe — all tires fly, cabin crushed
+  car3d.userData.damageLevel=level;
+
+  if(level>=1){
+    // Darken body colour
+    const darkened=isCarA?0x1a5a8a:0x8a1a1a;
+    parts.bodyMat.color.setHex(darkened);
+    parts.bodyMat.roughness=0.75;
+    // Crack front windshield
+    parts.fWind.material.color.setHex(0x334455);
+    parts.fWind.material.opacity=0.28;
+    // Tilt hood
+    parts.hood.rotation.z=0.1;
+    parts.hood.position.y+=0.1;
+  }
+
+  if(level>=2){
+    // Crumple hood
+    parts.hood.scale.x=0.35;
+    parts.hood.position.x-=0.35;
+    parts.hoodMat.color.setHex(0x1a1a1a);
+    parts.hoodMat.roughness=1;
+    // Shatter front windshield completely
+    parts.fWind.visible=false;
+    // Kill headlights
+    parts.headlights.forEach(hl=>{
+      hl.material.emissiveIntensity=0;
+      hl.material.color.setHex(0x222222);
+    });
+    // Eject front two tires
+    ejectWheel(car3d,'fr',isCarA,7);
+    ejectWheel(car3d,'fl',isCarA,6);
+  }
+
+  if(level>=3){
+    // Eject rear tires too
+    ejectWheel(car3d,'rr',isCarA,5);
+    ejectWheel(car3d,'rl',isCarA,4);
+    // Crush cabin
+    parts.cabin.scale.y=0.45;
+    parts.cabin.position.y=0.9;
+    // Tilt whole car
+    car3d.rotation.z=(isCarA?1:-1)*0.14;
+    // Shatter rear windshield
+    parts.rWind.visible=false;
+  }
+
+  return level;
+}
+
+function ejectWheel(car3d, name, isCarA, speed){
+  const wd=car3d.userData.parts.wheels[name];
+  if(!wd||wd.ejected) return;
+  wd.ejected=true;
+  const wClone=wd.wheel.clone();
+  // World position = car position + local wheel offset (approximated)
+  const wpx=car3d.position.x+(isCarA?1:-1)*wd.basePos.x*car3d.scale.x;
+  const wpy=car3d.position.y+wd.basePos.y;
+  const wpz=wd.basePos.z;
+  wClone.position.set(wpx,wpy+0.4,wpz);
+  wClone.userData={
+    vel:new THREE.Vector3(
+      (isCarA?1:-1)*(speed+Math.random()*4),
+      4+Math.random()*6,
+      (Math.random()-.5)*7
+    ),
+    life:3.5,
+    spin:(Math.random()-.5)*12
+  };
+  scene.add(wClone);
+  ejectedWheels.push(wClone);
+  wd.wheel.visible=false;
+  wd.rim.visible=false;
+}
+
+function updateEjectedWheels(dt){
+  for(let i=ejectedWheels.length-1;i>=0;i--){
+    const w=ejectedWheels[i];
+    w.userData.vel.y-=18*dt;
+    w.position.addScaledVector(w.userData.vel,dt);
+    w.rotation.z+=w.userData.spin*dt;
+    if(w.position.y<0.18){ w.position.y=0.18; w.userData.vel.y*=-.3; w.userData.vel.x*=.65; }
+    w.userData.life-=dt;
+    if(w.userData.life<=0){ scene.remove(w); ejectedWheels.splice(i,1); }
+  }
+}
+
+function dmgBadgeHTML(level){
+  const labels=['Sem Dano','Leve ⚠️','Grave 💥','Total 💀'];
+  const cls=['dmg-0','dmg-1','dmg-2','dmg-3'];
+  return `<span class="dmg-badge ${cls[level]}">${labels[level]}</span>`;
+}
+
+function rebuildCars(){
+  scene.remove(carA3d); scene.remove(carB3d);
+  ejectedWheels.forEach(w=>scene.remove(w)); ejectedWheels.length=0;
+  // Re-create fresh
+  const nA=buildCar(0x3498db); nA.position.y=.18; scene.add(nA);
+  const nB=buildCar(0xe74c3c); nB.position.y=.18; scene.add(nB);
+  return [nA,nB];
+}
+
+// ── CHART SWITCH ──
+function switchChart(key, btn){
+  document.querySelectorAll('.cpane').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.ctab').forEach(b=>b.classList.remove('active'));
+  document.getElementById('cpane-'+key).classList.add('active');
+  btn.classList.add('active');
+  requestAnimationFrame(()=>{ if(key==='E') chartE.resize(); else chartP.resize(); });
+}
+
+// ── IMPACT PARTICLES ──
+const particles=[];
+const pMat=new THREE.MeshBasicMaterial({color:0xf1c40f});
+function spawnParticles(pos){
+  for(let i=0;i<22;i++){
+    const p=new THREE.Mesh(new THREE.SphereGeometry(.12,6,6),pMat.clone());
+    p.position.copy(pos); p.position.y+=.6;
+    const vel=new THREE.Vector3((Math.random()-.5)*18,(Math.random()*10+2),(Math.random()-.5)*8);
+    p.userData={vel,life:1}; scene.add(p); particles.push(p);
+  }
+}
+function updateParticles(dt){
+  for(let i=particles.length-1;i>=0;i--){
+    const p=particles[i];
+    p.userData.life-=dt*1.8;
+    p.userData.vel.y-=20*dt;
+    p.position.addScaledVector(p.userData.vel,dt);
+    p.material.opacity=p.userData.life; p.material.transparent=true;
+    if(p.userData.life<=0){scene.remove(p);particles.splice(i,1);}
+  }
+}
+
+// ── ACTION-REACTION ARROWS ──
+const arrowMatA = new THREE.ArrowHelper(
+  new THREE.Vector3(-1,0,0), new THREE.Vector3(0,1,0), 4, 0x3498db, 1, 0.6
+);
+const arrowMatB = new THREE.ArrowHelper(
+  new THREE.Vector3(1,0,0), new THREE.Vector3(0,1,0), 4, 0xe74c3c, 1, 0.6
+);
+arrowMatA.visible=false; arrowMatB.visible=false;
+scene.add(arrowMatA); scene.add(arrowMatB);
+
+function showActionReaction(impactX){
+  arrowMatA.position.set(impactX, 1.2, 0);
+  arrowMatB.position.set(impactX, 1.2, 0);
+  arrowMatA.visible=true; arrowMatB.visible=true;
+  setTimeout(()=>{ arrowMatA.visible=false; arrowMatB.visible=false; }, 1800);
+}
+
+// ── SCALE CAR BY MASS ──
+function scaleCarByMass(car3d, mass){
+  // mass range 50–5000; scale 0.65–1.35
+  const s = 0.65 + (mass - 50) / (5000 - 50) * 0.7;
+  car3d.scale.set(s, s, s);
+}
+let isDragging=false, prevMouse={x:0,y:0};
+let camTheta=0, camPhi=0.38, camR=28;
+canvas3d.addEventListener('mousedown',e=>{isDragging=true;prevMouse={x:e.clientX,y:e.clientY}});
+window.addEventListener('mouseup',()=>isDragging=false);
+window.addEventListener('mousemove',e=>{
+  if(!isDragging) return;
+  camTheta-=(e.clientX-prevMouse.x)*.008;
+  camPhi=Math.max(.1,Math.min(1.4,camPhi-(e.clientY-prevMouse.y)*.008));
+  prevMouse={x:e.clientX,y:e.clientY};
+});
+canvas3d.addEventListener('wheel',e=>{camR=Math.max(12,Math.min(60,camR+e.deltaY*.04));e.preventDefault();},{passive:false});
+
+function updateCamera(){
+  camera.position.x=camR*Math.sin(camTheta)*Math.cos(camPhi);
+  camera.position.y=camR*Math.sin(camPhi)+2;
+  camera.position.z=camR*Math.cos(camTheta)*Math.cos(camPhi);
+  camera.lookAt(0,1,0);
+}
+
+// ══════════════════════════════════════════════
+//  CHART.JS — ENERGY BAR
+// ══════════════════════════════════════════════
+const chartE = new Chart(document.getElementById('chartE'),{
+  type:'bar',
+  data:{
+    labels:['A antes','A depois','B antes','B depois'],
+    datasets:[{
+      data:[0,0,0,0],
+      backgroundColor:['rgba(52,152,219,.7)','rgba(52,152,219,.35)','rgba(231,76,60,.7)','rgba(231,76,60,.35)'],
+      borderColor:['#3498db','#3498db88','#e74c3c','#e74c3c88'],
+      borderWidth:1.5, borderRadius:4
+    }]
+  },
+  options:{
+    responsive:true, maintainAspectRatio:false, animation:{duration:600},
+    plugins:{legend:{display:false},tooltip:{
+      backgroundColor:'#111d14',borderColor:'#2ecc71',borderWidth:1,
+      bodyColor:'#dff0e6',bodyFont:{family:'Space Mono',size:10},
+      callbacks:{label:ctx=>` ${(ctx.parsed.y/1000).toFixed(1)} kJ`}
+    }},
+    scales:{
+      x:{grid:{color:'rgba(46,204,113,.06)'},ticks:{color:'rgba(223,240,230,.4)',font:{family:'Outfit',size:9}}},
+      y:{grid:{color:'rgba(46,204,113,.06)'},ticks:{color:'rgba(223,240,230,.4)',font:{family:'Space Mono',size:8}},
+         title:{display:true,text:'Energia (J)',color:'rgba(223,240,230,.45)',font:{family:'Outfit',size:9}}}
+    }
+  }
+});
+
+// ── MOMENTUM BAR CHART ──
+const chartP = new Chart(document.getElementById('chartP'),{
+  type:'bar',
+  data:{
+    labels:['p_A antes','p_B antes','p_total antes','p_A depois','p_B depois','p_total depois'],
+    datasets:[{
+      data:[0,0,0,0,0,0],
+      backgroundColor:[
+        'rgba(52,152,219,.8)','rgba(231,76,60,.8)','rgba(46,204,113,.8)',
+        'rgba(52,152,219,.4)','rgba(231,76,60,.4)','rgba(46,204,113,.4)'
+      ],
+      borderColor:['#3498db','#e74c3c','#2ecc71','#3498db88','#e74c3c88','#2ecc7188'],
+      borderWidth:1.5, borderRadius:4
+    }]
+  },
+  options:{
+    responsive:true, maintainAspectRatio:false, animation:{duration:600},
+    plugins:{legend:{display:false},tooltip:{
+      backgroundColor:'#111d14',borderColor:'#2ecc71',borderWidth:1,
+      bodyColor:'#dff0e6',bodyFont:{family:'Space Mono',size:10},
+      callbacks:{label:ctx=>` ${ctx.parsed.y.toFixed(0)} kg·m/s`}
+    }},
+    scales:{
+      x:{grid:{color:'rgba(46,204,113,.06)'},ticks:{color:'rgba(223,240,230,.38)',font:{family:'Outfit',size:8},maxRotation:30}},
+      y:{grid:{color:'rgba(46,204,113,.06)'},ticks:{color:'rgba(223,240,230,.38)',font:{family:'Space Mono',size:8}},
+         title:{display:true,text:'p (kg·m/s)',color:'rgba(223,240,230,.45)',font:{family:'Outfit',size:9}}}
+    }
+  }
+});
+
+// ══════════════════════════════════════════════
+//  AUDIO
+// ══════════════════════════════════════════════
+let audioCtx=null;
+function getAC(){if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();return audioCtx;}
+function playImpact(intensity=1){
+  try{
+    const ac=getAC();
+    // Low thud
+    const osc=ac.createOscillator(), g=ac.createGain(), dist=ac.createWaveShaper();
+    const curve=new Float32Array(256);
+    for(let i=0;i<256;i++){const x=i*2/256-1;curve[i]=x<0?-Math.pow(-x,.5):Math.pow(x,.5)*.9;}
+    dist.curve=curve;
+    osc.connect(dist);dist.connect(g);g.connect(ac.destination);
+    osc.type='sine';
+    osc.frequency.setValueAtTime(80*intensity,ac.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(12,ac.currentTime+.3);
+    g.gain.setValueAtTime(.8,ac.currentTime);
+    g.gain.exponentialRampToValueAtTime(.001,ac.currentTime+.35);
+    osc.start();osc.stop(ac.currentTime+.35);
+    // Metal clang
+    const osc2=ac.createOscillator(),g2=ac.createGain();
+    osc2.connect(g2);g2.connect(ac.destination);
+    osc2.type='sawtooth';osc2.frequency.value=220+intensity*80;
+    g2.gain.setValueAtTime(.3,ac.currentTime);
+    g2.gain.exponentialRampToValueAtTime(.001,ac.currentTime+.12);
+    osc2.start();osc2.stop(ac.currentTime+.12);
+  }catch(e){}
+}
+
+// ══════════════════════════════════════════════
+//  PHYSICS & SIMULATION
+// ══════════════════════════════════════════════
+let posA=0, posB=0, velA_sim=0, velB_sim=0;
+let collided=false, simRunning=false;
+let mA_v=1000, mB_v=1000;
+let rafId=null, lastT=null;
+const PX_SCALE=3.5; // world units per m/s (visual only)
+const START_SEP=16;  // half-separation in world units
+
+function getParams(){
+  return {
+    mA: parseFloat(document.getElementById('mA').value),
+    mB: parseFloat(document.getElementById('mB').value),
+    vA: parseFloat(document.getElementById('vA').value),
+    vB: parseFloat(document.getElementById('vB').value),
+    type: document.getElementById('col-type').value,
+    e: parseFloat(document.getElementById('rest').value)
+  };
+}
+
+function updateLabels(){
+  const p=getParams();
+  document.getElementById('mA-v').textContent=p.mA+' kg';
+  document.getElementById('mB-v').textContent=p.mB+' kg';
+  document.getElementById('vA-v').textContent=p.vA+' m/s';
+  document.getElementById('vB-v').textContent=p.vB+' m/s';
+  const descs={
+    '0':'Os corpos fundem-se após o impacto. Máxima perda de energia cinética.',
+    '0.5':'Colisão parcialmente inelástica. Parte da energia vira calor e deformação.',
+    '1':'Colisão perfeitamente elástica. Energia cinética totalmente conservada.'
+  };
+  document.getElementById('rest-desc').textContent=descs[document.getElementById('rest').value];
+
+  // Scale cars live in 3D
+  if(!simRunning){ scaleCarByMass(carA3d,p.mA); scaleCarByMass(carB3d,p.mB); }
+
+  // Pre-compute and show cards
+  const ecA=.5*p.mA*p.vA*p.vA, ecB=.5*p.mB*p.vB*p.vB;
+  const pA=p.mA*p.vA, pB_raw=p.mB*p.vB;
+  const pBsigned = p.type==='HEAD_ON' ? -pB_raw : pB_raw;
+  document.getElementById('pc-pA').textContent=pA.toFixed(0)+' kg·m/s';
+  document.getElementById('pc-pB').textContent=Math.abs(pBsigned).toFixed(0)+' kg·m/s';
+  document.getElementById('pc-ec').textContent=((ecA+ecB)/1000).toFixed(1)+' kJ';
+  document.getElementById('pc-loss').textContent='—';
+
+  chartE.data.datasets[0].data=[ecA,0,ecB,0]; chartE.update();
+
+  // Seed momentum chart with before values, zeros for after
+  const pTot=pA+pBsigned;
+  chartP.data.datasets[0].data=[Math.abs(pA),Math.abs(pBsigned),Math.abs(pTot),0,0,0];
+  chartP.update();
+
+  document.getElementById('cn-before').textContent='Antes: '+(pA+pBsigned).toFixed(0)+' kg·m/s';
+  document.getElementById('cn-after').textContent='Depois: —';
+}
+
+function setup(){
+  cancelAnimationFrame(rafId);
+  collided=false; simRunning=false; lastT=null;
+  particles.forEach(p=>scene.remove(p)); particles.length=0;
+  arrowMatA.visible=false; arrowMatB.visible=false;
+
+  // Rebuild fresh undamaged cars
+  scene.remove(carA3d); scene.remove(carB3d);
+  ejectedWheels.forEach(w=>scene.remove(w)); ejectedWheels.length=0;
+  const fresh=rebuildCars();
+  carA3d=fresh[0]; carB3d=fresh[1];
+
+  const p=getParams();
+  scaleCarByMass(carA3d, p.mA);
+  scaleCarByMass(carB3d, p.mB);
+
+  if(p.type==='HEAD_ON'){
+    velA_sim=+p.vA; velB_sim=-p.vB;
+    posA=-START_SEP; posB=+START_SEP;
+    carB3d.rotation.y=Math.PI; carA3d.rotation.y=0;
+  } else if(p.type==='REAR'){
+    velA_sim=+p.vA; velB_sim=0;
+    posA=-START_SEP; posB=2;
+    carA3d.rotation.y=0; carB3d.rotation.y=0;
+  } else {
+    velA_sim=+p.vA; velB_sim=+p.vB*0.4;
+    posA=-START_SEP; posB=2;
+    carA3d.rotation.y=0; carB3d.rotation.y=0;
+  }
+
+  carA3d.position.x=posA; carB3d.position.x=posB;
+  document.getElementById('dmg-row').style.display='none';
+  updateLabels();
+  document.getElementById('desc-fisica').textContent='Configure e dispare.';
+  document.getElementById('conserv-bar').style.width='0%';
+  renderLoop();
+}
+
+function physicsCollide(mA,mB,vA,vB,e){
+  const v1p=((mA-e*mB)*vA+(1+e)*mB*vB)/(mA+mB);
+  const v2p=((mB-e*mA)*vB+(1+e)*mA*vA)/(mA+mB);
+  return {v1p,v2p};
+}
+
+// ── SLOW-MO SYSTEM ──
+let slowMoActive = false;
+let slowMoTimer = 0;
+const SLOWMO_DURATION = 2.5; // seconds of slow-mo after impact
+
+function simSpeedLabel(v){
+  const labels={1:'0.1× 🐢',2:'0.2×',3:'0.3×',4:'0.5×',5:'Normal',6:'1.5×',7:'2×',8:'3×',9:'4×',10:'5× ⚡'};
+  return labels[v]||'Normal';
+}
+
+function getSimSpeedMultiplier(){
+  const v=parseInt(document.getElementById('simSpeed').value);
+  const map={1:.1,2:.2,3:.3,4:.5,5:1,6:1.5,7:2,8:3,9:4,10:5};
+  return map[v]||1;
+}
+
+function startSlowMo(){
+  // Set speed to 0.2× then start
+  document.getElementById('simSpeed').value=2;
+  document.getElementById('simSpeed-v').textContent=simSpeedLabel(2);
+  startCollision();
+}
+
+function startCollision(){
+  if(simRunning||collided) return;
+  simRunning=true; lastT=null;
+}
+
+// Slow-mo overlay badge
+let slowMoBadge=null;
+function createSlowMoBadge(){
+  if(slowMoBadge) return;
+  slowMoBadge=document.createElement('div');
+  slowMoBadge.style.cssText='position:absolute;top:10px;right:14px;background:rgba(52,152,219,.85);color:#fff;padding:4px 12px;border-radius:5px;font-family:Space Mono,monospace;font-size:.78rem;font-weight:700;pointer-events:none;opacity:0;transition:opacity .3s;z-index:10;letter-spacing:.05em';
+  slowMoBadge.textContent='● CÂMERA LENTA';
+  // Position relative to canvas parent
+  const wrapper=document.getElementById('canvas3d').parentElement;
+  wrapper.style.position='relative';
+  wrapper.appendChild(slowMoBadge);
+}
+function setSlowMoBadgeVisible(v){
+  if(!slowMoBadge) createSlowMoBadge();
+  slowMoBadge.style.opacity=v?'1':'0';
+}
+
+function renderLoop(ts){
+  rafId=requestAnimationFrame(renderLoop);
+  const dtReal=lastT?Math.min((ts-lastT)/1000,.033):0;
+  lastT=ts;
+
+  // Apply speed multiplier
+  const speedMult = getSimSpeedMultiplier();
+  const dt = dtReal * speedMult;
+
+  // Show slow-mo badge when speed < 1
+  if(simRunning) setSlowMoBadgeVisible(speedMult < 1);
+
+  if(simRunning && !collided){
+    const VIS_SCALE=0.12;
+    const SUBSTEPS=8;
+    const subDt=dt/SUBSTEPS;
+    for(let s=0;s<SUBSTEPS;s++){
+      posA+=velA_sim*VIS_SCALE*subDt*60;
+      posB+=velB_sim*VIS_SCALE*subDt*60;
+      const gap=posB-posA-3.6;
+      if(gap<=0.0){
+        const overlap=-gap;
+        posA-=overlap*0.5; posB+=overlap*0.5;
+        collided=true; simRunning=false;
+
+        const p=getParams();
+        const vA_m=velA_sim, vB_m=velB_sim;
+        const {v1p,v2p}=physicsCollide(p.mA,p.mB,vA_m,vB_m,p.e);
+        const vA_out=v1p, vB_out=v2p;
+
+        const ecA_b=.5*p.mA*vA_m*vA_m, ecB_b=.5*p.mB*vB_m*vB_m;
+        const ecA_a=.5*p.mA*vA_out*vA_out, ecB_a=.5*p.mB*vB_out*vB_out;
+        const ecLoss=(ecA_b+ecB_b)-(ecA_a+ecB_a);
+
+        const pA_b=p.mA*vA_m, pB_b=p.mB*vB_m;
+        const pA_a=p.mA*vA_out, pB_a=p.mB*vB_out;
+        const p_before=pA_b+pB_b, p_after=pA_a+pB_a;
+
+        document.getElementById('pc-loss').textContent=(ecLoss/1000).toFixed(2)+' kJ';
+        chartE.data.datasets[0].data=[ecA_b,ecA_a,ecB_b,ecB_a]; chartE.update();
+        chartP.data.datasets[0].data=[Math.abs(pA_b),Math.abs(pB_b),Math.abs(p_before),Math.abs(pA_a),Math.abs(pB_a),Math.abs(p_after)];
+        chartP.update();
+
+        const ratio=p_before!==0?Math.abs(p_after/p_before):1;
+        document.getElementById('conserv-bar').style.width=Math.min(ratio*100,100)+'%';
+        document.getElementById('cn-before').textContent='Antes: '+p_before.toFixed(1)+' kg·m/s';
+        document.getElementById('cn-after').textContent='Depois: '+p_after.toFixed(1)+' kg·m/s';
+
+        const typeLabel={HEAD_ON:'Frente a Frente',REAR:'Traseira',SAME:'Mesmo Sentido'};
+        const eName={'0':'Inelástica (e=0)','0.5':'Semi-inelástica (e=0.5)','1':'Elástica (e=1)'};
+        document.getElementById('desc-fisica').innerHTML=
+          `<b>${typeLabel[p.type]} · ${eName[String(p.e)]}</b><br>`+
+          `v'A = ${vA_out.toFixed(1)} m/s &nbsp; v'B = ${vB_out.toFixed(1)} m/s<br>`+
+          `ΔEc = ${(ecLoss/1000).toFixed(2)} kJ dissipada`;
+
+        // ── DAMAGE based on relative impact velocity ──
+        const vRel=Math.abs(vA_m-vB_m);
+        const lvlA=applyDamage(carA3d, vRel, true);
+        const lvlB=applyDamage(carB3d, vRel, false);
+        document.getElementById('dmg-row').style.display='';
+        document.getElementById('dmg-a-label').innerHTML=dmgBadgeHTML(lvlA);
+        document.getElementById('dmg-b-label').innerHTML=dmgBadgeHTML(lvlB);
+        document.getElementById('dmg-force').textContent=vRel.toFixed(1)+' m/s (Δv relativa)';
+
+        const impX=(posA+posB)/2;
+        spawnParticles(new THREE.Vector3(impX,0,0));
+        showActionReaction(impX);
+        playImpact(Math.min(vRel/40+.4,1.2));
+
+        velA_sim=v1p; velB_sim=v2p;
+        simRunning=true;
+        break;
+      }
+    }
+    carA3d.position.x=posA;
+    carB3d.position.x=posB;
+  }
+
+  if(simRunning && collided){
+    // Scale post-collision drift by speed multiplier too
+    const postScale=0.12*speedMult;
+    posA+=velA_sim*postScale;
+    posB+=velB_sim*postScale;
+    carA3d.position.x=posA;
+    carB3d.position.x=posB;
+    if(Math.abs(posA)>38 && Math.abs(posB)>38){
+      simRunning=false;
+      setSlowMoBadgeVisible(false);
+    }
+  }
+
+  updateParticles(dt);
+  updateEjectedWheels(dt);
+  updateCamera();
+  renderer.render(scene,camera);
+}
+
+function showTab(n,btn){
+  document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('tab-'+n).classList.add('active');
+  btn.classList.add('active');
+}
+
+// init — cars need to be mutable
+let carA3d=buildCar(0x3498db), carB3d=buildCar(0xe74c3c);
+carA3d.position.y=.18; carB3d.position.y=.18;
+scene.add(carA3d); scene.add(carB3d);
+setup();
+</script>
+</body>
+</html>

@@ -1,0 +1,730 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<title>V-PHYS | Simulador MCU</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{
+  --verde:#00ff88;--verde-dark:#00c966;
+  --verde-dim:rgba(0,255,136,0.08);--verde-glow:rgba(0,255,136,0.30);--verde-glow2:rgba(0,255,136,0.15);
+  --azul:#00aaff;--gold:#f1c40f;--danger:#ff4444;--purple:#a29bfe;
+  --bg:#060d09;--bg2:#0c1610;--panel:#111d14;--panel2:#152019;
+  --border:rgba(0,255,136,0.18);--border2:rgba(0,255,136,0.10);
+  --text:#d4f5e2;--dim:rgba(212,245,226,0.5);--muted:#4d8a65;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Outfit',sans-serif;background:var(--bg);color:var(--text);height:100vh;display:flex;flex-direction:column;overflow:hidden;}
+body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.03) 2px,rgba(0,0,0,0.03) 4px);pointer-events:none;z-index:9999;}
+
+/* OVERLAY */
+#overlay{position:fixed;inset:0;z-index:1000;background:rgba(0,8,4,0.92);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;}
+.ov-card{background:var(--panel);border-radius:20px;padding:36px;max-width:480px;width:90%;box-shadow:0 0 60px rgba(0,255,136,0.1),0 30px 80px rgba(0,0,0,0.6);border:1px solid var(--border);}
+.ov-badge{display:inline-block;background:var(--verde-dim);color:var(--verde);font-weight:800;font-size:.72rem;letter-spacing:2px;text-transform:uppercase;padding:4px 14px;border-radius:20px;margin-bottom:14px;border:1px solid var(--border);}
+.ov-card h2{font-size:1.7rem;font-weight:900;margin-bottom:6px;line-height:1.2;}
+.ov-card h2 span{color:var(--verde);text-shadow:0 0 20px var(--verde-glow);}
+.ov-card p{color:var(--dim);font-size:.9rem;margin-bottom:20px;line-height:1.6;}
+.ov-card p strong{color:var(--verde);}
+.ov-steps{list-style:none;display:flex;flex-direction:column;gap:10px;margin-bottom:22px;}
+.ov-steps li{display:flex;align-items:flex-start;gap:10px;font-size:.84rem;color:var(--dim);line-height:1.4;}
+.ov-steps li strong{color:var(--text);}
+.step-n{background:var(--verde);color:#050f08;width:20px;height:20px;border-radius:50%;font-size:.7rem;font-weight:900;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;box-shadow:0 0 6px var(--verde-glow2);}
+.btn-start{width:100%;background:var(--verde);color:#050f08;border:none;padding:13px;border-radius:10px;font-weight:900;cursor:pointer;font-family:'Outfit',sans-serif;font-size:.95rem;letter-spacing:.04em;transition:.2s;}
+.btn-start:hover{filter:brightness(1.1);}
+
+/* HEADER */
+.header{border-bottom:1px solid var(--border2);padding:9px 20px;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;background:var(--bg2);}
+.hdr-left{display:flex;align-items:center;gap:10px;}
+.hdr-badge{background:var(--verde-dim);color:var(--verde);padding:3px 10px;border-radius:5px;font-weight:700;font-size:.68rem;letter-spacing:1.5px;border:1px solid var(--border2);}
+.hdr-title{font-size:.9rem;font-weight:700;}
+.hdr-right{font-family:'Space Mono',monospace;font-size:.62rem;color:var(--muted);letter-spacing:.1em;}
+
+/* LAYOUT */
+.app{display:flex;flex:1;min-height:0;overflow:hidden;}
+
+/* SIDEBAR */
+.sidebar{width:258px;background:var(--bg2);border-right:1px solid var(--border2);padding:14px 13px;display:flex;flex-direction:column;gap:12px;overflow-y:auto;flex-shrink:0;}
+.sidebar::-webkit-scrollbar{width:3px;}
+.sidebar::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
+.s-title{font-size:.62rem;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:2px;padding-bottom:7px;border-bottom:1px solid var(--border2);}
+
+/* SLIDERS */
+.sl-group{display:flex;flex-direction:column;gap:4px;}
+.sl-label{display:flex;justify-content:space-between;align-items:baseline;}
+.sl-name{font-size:.76rem;color:var(--dim);}
+.sl-val{font-family:'Space Mono',monospace;font-size:.82rem;font-weight:700;}
+input[type=range]{width:100%;-webkit-appearance:none;height:5px;border-radius:3px;outline:none;cursor:pointer;margin-top:3px;}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:15px;height:15px;border-radius:50%;cursor:pointer;box-shadow:0 0 7px currentColor;}
+#sl-r{accent-color:var(--azul);background:linear-gradient(to right,var(--azul) 0%,var(--azul) 16%,rgba(0,170,255,.15) 16%);}
+#sl-v{accent-color:var(--verde);background:linear-gradient(to right,var(--verde) 0%,var(--verde) 16%,rgba(0,255,136,.12) 16%);}
+#sl-amax{accent-color:var(--purple);background:linear-gradient(to right,var(--purple) 0%,var(--purple) 26%,rgba(162,155,254,.12) 26%);}
+#sl-massa{accent-color:var(--gold);background:linear-gradient(to right,var(--gold) 0%,var(--gold) 48%,rgba(241,196,15,.12) 48%);}
+
+/* PRESETS */
+.preset-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px;}
+.preset-btn{background:var(--panel2);border:1px solid var(--border2);color:var(--dim);padding:7px 5px;border-radius:7px;cursor:pointer;font-family:'Outfit',sans-serif;font-size:.7rem;text-align:center;transition:.18s;line-height:1.3;}
+.preset-btn:hover{border-color:var(--verde);color:var(--text);}
+.preset-btn.active{background:var(--verde-dim);border-color:var(--verde);color:var(--verde);font-weight:700;}
+
+/* FORMULA */
+.fbox{background:rgba(0,0,0,.35);padding:11px 13px;border-radius:8px;font-family:'Space Mono',monospace;text-align:center;border-left:3px solid var(--verde);}
+.fbox-lbl{font-size:.58rem;opacity:.45;letter-spacing:.08em;text-transform:uppercase;margin-bottom:3px;}
+.fbox-eq{font-size:.86rem;color:var(--verde);line-height:1.7;}
+.fbox-sub{font-size:.65rem;color:var(--muted);margin-top:2px;}
+
+/* BOTÕES */
+.btn-run{background:var(--verde);color:#050f08;border:none;padding:11px;width:100%;border-radius:8px;font-weight:700;cursor:pointer;font-family:'Outfit',sans-serif;font-size:.86rem;letter-spacing:.04em;transition:.2s;}
+.btn-run:hover{filter:brightness(1.12);}
+.btn-reset{background:transparent;color:var(--dim);border:1px solid var(--border);padding:9px;width:100%;border-radius:8px;cursor:pointer;font-family:'Outfit',sans-serif;font-size:.82rem;transition:.2s;}
+.btn-reset:hover{border-color:var(--verde);color:var(--text);}
+
+/* GUIA */
+.guide{background:var(--verde-dim);border:1px solid var(--border);border-radius:10px;padding:11px 13px;}
+.guide h4{font-size:.68rem;font-weight:900;color:var(--verde);text-transform:uppercase;letter-spacing:1px;margin-bottom:7px;}
+.guide ol{list-style:none;display:flex;flex-direction:column;gap:5px;}
+.guide li{font-size:.74rem;color:var(--dim);display:flex;align-items:flex-start;gap:6px;line-height:1.4;}
+.guide li strong{color:var(--text);}
+.gn{background:var(--verde);color:#050f08;width:16px;height:16px;border-radius:50%;font-size:.62rem;font-weight:900;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;}
+
+/* MAIN */
+.main{flex:1;min-width:0;display:flex;flex-direction:column;overflow:hidden;padding:12px;gap:10px;}
+
+/* STATS */
+.stats-row{display:flex;gap:8px;flex-shrink:0;}
+.stat-card{flex:1;background:var(--panel);border-radius:9px;padding:9px 12px;border:1px solid var(--border2);}
+.stat-lbl{font-size:.58rem;text-transform:uppercase;letter-spacing:.08em;color:var(--dim);}
+.stat-val{font-family:'Space Mono',monospace;font-size:1.05rem;font-weight:700;margin-top:2px;transition:color .3s;}
+.sv{color:var(--verde);}
+.sa{color:var(--gold);}
+.sr{color:var(--azul);}
+.st{color:var(--purple);}
+.sf{color:#ff9f43;}
+
+/* BARRA SEGURANÇA */
+.safety-wrap{flex-shrink:0;}
+.safety-label{display:flex;justify-content:space-between;font-size:.66rem;color:var(--dim);margin-bottom:4px;}
+.safety-label span{font-family:'Space Mono',monospace;}
+.safety-track{height:9px;background:rgba(0,0,0,.4);border-radius:5px;overflow:hidden;border:1px solid var(--border2);}
+.safety-fill{height:100%;border-radius:5px;transition:width .3s,background .3s;}
+
+/* STATUS */
+#status-tag{font-family:'Space Mono',monospace;font-size:.68rem;padding:6px 12px;border-radius:6px;text-align:center;font-weight:700;flex-shrink:0;}
+.st-ok{background:rgba(0,255,136,.08);border:1px solid rgba(0,255,136,.25);color:var(--verde);}
+.st-danger{background:rgba(255,68,68,.08);border:1px solid rgba(255,68,68,.3);color:var(--danger);}
+.st-idle{background:rgba(0,0,0,.25);border:1px solid var(--border2);color:var(--dim);}
+
+/* VISUAIS: pista em cima, gráfico embaixo */
+.top-visual{flex:1;min-height:0;display:flex;gap:10px;}
+.track-box{flex:0 0 auto;display:flex;flex-direction:column;gap:6px;background:var(--panel);border-radius:12px;padding:11px;border:1px solid var(--border2);}
+.info-box{flex:1;display:flex;flex-direction:column;gap:8px;min-width:0;}
+.cb-label{font-size:.6rem;text-transform:uppercase;letter-spacing:.1em;color:var(--dim);font-weight:700;}
+#trackCanvas{display:block;border-radius:6px;}
+
+/* PAINEL INFO LATERAL */
+.info-card{background:var(--panel);border-radius:10px;padding:12px 14px;border:1px solid var(--border2);display:flex;flex-direction:column;gap:6px;}
+.info-row{display:flex;justify-content:space-between;align-items:center;font-size:.78rem;}
+.info-lbl{color:var(--dim);}
+.info-val{font-family:'Space Mono',monospace;font-weight:700;font-size:.82rem;}
+.info-card-title{font-size:.62rem;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:800;margin-bottom:3px;border-bottom:1px solid var(--border2);padding-bottom:5px;}
+
+/* Medidor circular de risco */
+.risk-meter{display:flex;flex-direction:column;align-items:center;gap:4px;background:var(--panel);border-radius:10px;padding:12px;border:1px solid var(--border2);}
+.risk-label{font-size:.6rem;text-transform:uppercase;letter-spacing:1px;color:var(--dim);font-weight:800;}
+#riskCanvas{display:block;}
+
+/* GRÁFICO embaixo */
+.chart-box{flex-shrink:0;height:130px;background:var(--panel);border-radius:12px;padding:10px 14px;border:1px solid var(--border2);display:flex;flex-direction:column;gap:5px;}
+#chartCanvas{flex:1;width:100%!important;}
+</style>
+</head>
+<body>
+
+<!-- OVERLAY -->
+<div id="overlay">
+  <div class="ov-card">
+    <div class="ov-badge">V-PHYS · SIMULADOR</div>
+    <h2>Movimento<br><span>Circular Uniforme</span></h2>
+    <p>Explore como <strong>raio</strong>, <strong>velocidade</strong> e <strong>aceleração centrípeta</strong> se relacionam. Veja em tempo real quando um veículo derrapa!</p>
+    <ul class="ov-steps">
+      <li><span class="step-n">1</span><span>Ajuste <strong>Raio</strong>, <strong>Velocidade</strong> e <strong>Massa</strong> com os sliders</span></li>
+      <li><span class="step-n">2</span><span>Defina o <strong>Limite de Atrito</strong> (a_max seguro)</span></li>
+      <li><span class="step-n">3</span><span>Clique em <strong>Simular</strong> — observe o carro e o gráfico ao vivo</span></li>
+      <li><span class="step-n">4</span><span>Use os <strong>Presets</strong> para cenários reais como F1 e pista molhada</span></li>
+    </ul>
+    <button class="btn-start" onclick="fecharOverlay()">▶ INICIAR SIMULADOR</button>
+  </div>
+</div>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="hdr-left">
+    <span class="hdr-badge">MCU</span>
+    <span class="hdr-title">Simulador — Movimento Circular Uniforme</span>
+  </div>
+  <span class="hdr-right">a_c = v² / R &nbsp;·&nbsp; F_c = m · a_c</span>
+</div>
+
+<div class="app">
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="s-title">Parâmetros</div>
+
+    <div class="sl-group">
+      <div class="sl-label">
+        <span class="sl-name">Raio (R)</span>
+        <span class="sl-val sr" id="val-r">50 m</span>
+      </div>
+      <input type="range" id="sl-r" min="10" max="300" value="50" step="5" oninput="atualizar()">
+    </div>
+
+    <div class="sl-group">
+      <div class="sl-label">
+        <span class="sl-name">Velocidade (v)</span>
+        <span class="sl-val sv" id="val-v">14.1 m/s</span>
+      </div>
+      <input type="range" id="sl-v" min="1" max="80" value="14.1" step="0.1" oninput="atualizar()">
+    </div>
+
+    <div class="sl-group">
+      <div class="sl-label">
+        <span class="sl-name">Massa do veículo (m)</span>
+        <span class="sl-val" style="color:var(--gold)" id="val-m">1000 kg</span>
+      </div>
+      <input type="range" id="sl-massa" min="500" max="5000" value="1000" step="100" oninput="atualizar()">
+    </div>
+
+    <div class="sl-group">
+      <div class="sl-label">
+        <span class="sl-name">Limite de Atrito (a_max)</span>
+        <span class="sl-val st" id="val-amax">4.0 m/s²</span>
+      </div>
+      <input type="range" id="sl-amax" min="1" max="15" value="4.0" step="0.1" oninput="atualizar()">
+    </div>
+
+    <div class="fbox">
+      <div class="fbox-lbl">Fórmulas MCU</div>
+      <div class="fbox-eq">a_c = v² / R<br>F_c = m · v² / R<br>T = 2πR / v</div>
+      <div class="fbox-sub">v_max = √(a_max · R)</div>
+    </div>
+
+    <div class="s-title">Presets</div>
+    <div class="preset-grid">
+      <button class="preset-btn active" id="pre-0" onclick="aplicarPreset(0)">🏙️ Curva<br>Urbana</button>
+      <button class="preset-btn" id="pre-1" onclick="aplicarPreset(1)">🏎️ Pista<br>F1</button>
+      <button class="preset-btn" id="pre-2" onclick="aplicarPreset(2)">🌧️ Pista<br>Molhada</button>
+      <button class="preset-btn" id="pre-3" onclick="aplicarPreset(3)">↩️ Retorno<br>Fechado</button>
+      <button class="preset-btn" id="pre-4" onclick="aplicarPreset(4)">🛣️ Rodovia<br>Seca</button>
+      <button class="preset-btn" id="pre-5" onclick="aplicarPreset(5)">⚠️ Derrapagem<br>Demo</button>
+    </div>
+
+    <div class="guide">
+      <h4>📐 Guia</h4>
+      <ol>
+        <li><span class="gn">↑</span><span>Raio maior → curva mais <strong>suave</strong></span></li>
+        <li><span class="gn">²</span><span>a_c cresce com <strong>v ao quadrado</strong></span></li>
+        <li><span class="gn">🔴</span><span>a_c > a_max = <strong>derrapagem</strong></span></li>
+        <li><span class="gn">m</span><span>Massa não afeta a_c, mas <strong>F_c sim</strong></span></li>
+      </ol>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:6px;">
+      <button class="btn-run" id="btn-sim" onclick="toggleSim()">▶ SIMULAR</button>
+      <button class="btn-reset" onclick="resetar()">↺ Resetar</button>
+    </div>
+  </div>
+
+  <!-- MAIN -->
+  <div class="main">
+
+    <!-- STATS -->
+    <div class="stats-row">
+      <div class="stat-card"><div class="stat-lbl">Velocidade</div><div class="stat-val sv" id="st-v">—</div></div>
+      <div class="stat-card"><div class="stat-lbl">Acel. Centrípeta</div><div class="stat-val sa" id="st-ac">—</div></div>
+      <div class="stat-card"><div class="stat-lbl">Força Centrípeta</div><div class="stat-val sf" id="st-fc">—</div></div>
+      <div class="stat-card"><div class="stat-lbl">Período (T)</div><div class="stat-val st" id="st-t">—</div></div>
+      <div class="stat-card"><div class="stat-lbl">Freq. (f)</div><div class="stat-val sr" id="st-f">—</div></div>
+      <div class="stat-card"><div class="stat-lbl">v_max segura</div><div class="stat-val sv" id="st-vmax">—</div></div>
+    </div>
+
+    <!-- BARRA SEGURANÇA -->
+    <div class="safety-wrap">
+      <div class="safety-label">
+        <span>Uso do Limite de Atrito &nbsp;<span id="safety-pct" style="color:var(--verde);font-weight:700">0%</span></span>
+        <span id="safety-desc" style="color:var(--dim)">seguro</span>
+      </div>
+      <div class="safety-track"><div class="safety-fill" id="safety-fill" style="width:0%;background:var(--verde)"></div></div>
+    </div>
+
+    <!-- STATUS -->
+    <div id="status-tag" class="st-idle">Ajuste os parâmetros e clique em SIMULAR</div>
+
+    <!-- PISTA + INFO -->
+    <div class="top-visual">
+      <div class="track-box" id="track-box">
+        <div class="cb-label">Pista — Vista Superior</div>
+        <canvas id="trackCanvas"></canvas>
+      </div>
+
+      <div class="info-box">
+        <!-- Card cálculos -->
+        <div class="info-card">
+          <div class="info-card-title">Cálculos Detalhados</div>
+          <div class="info-row"><span class="info-lbl">a_c = v²/R =</span><span class="info-val sa" id="ic-ac">—</span></div>
+          <div class="info-row"><span class="info-lbl">F_c = m·a_c =</span><span class="info-val sf" id="ic-fc">—</span></div>
+          <div class="info-row"><span class="info-lbl">v_max = √(a·R) =</span><span class="info-val sv" id="ic-vmax">—</span></div>
+          <div class="info-row"><span class="info-lbl">Margem até limite:</span><span class="info-val" id="ic-margin">—</span></div>
+          <div class="info-row"><span class="info-lbl">ω (vel. angular) =</span><span class="info-val st" id="ic-omega">—</span></div>
+          <div class="info-row"><span class="info-lbl">Rot. por min. (RPM):</span><span class="info-val sr" id="ic-rpm">—</span></div>
+        </div>
+
+        <!-- Medidor de risco circular -->
+        <div class="risk-meter">
+          <div class="risk-label">Risco de Derrapagem</div>
+          <canvas id="riskCanvas" width="120" height="70"></canvas>
+          <div id="risk-val" style="font-family:'Space Mono',monospace;font-size:.9rem;font-weight:700;color:var(--verde)">0%</div>
+        </div>
+
+        <!-- Card condição da pista -->
+        <div class="info-card" style="flex:1;">
+          <div class="info-card-title">Interpretação Física</div>
+          <div id="interp-text" style="font-size:.76rem;color:var(--dim);line-height:1.6;">
+            Ajuste os parâmetros para ver a análise física em tempo real.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- GRÁFICO EMBAIXO -->
+    <div class="chart-box">
+      <div class="cb-label">Aceleração Centrípeta vs Tempo Real</div>
+      <canvas id="chartCanvas"></canvas>
+    </div>
+
+  </div>
+</div>
+
+<script>
+const PRESETS = [
+  {r:50,  v:14.1, amax:4.0,  m:1200, nome:'Curva Urbana',
+   desc:'Velocidade ideal: v = √(4.0 × 50) = 14.1 m/s. No limite exato do atrito — qualquer aceleração extra causa derrapagem.'},
+  {r:150, v:55,   amax:10.0, m:700,  nome:'Pista F1',
+   desc:'F1: pneus especiais suportam até 10 m/s². Raio grande permite alta velocidade. v_max = √(10 × 150) = 38.7 m/s.'},
+  {r:80,  v:12,   amax:2.5,  m:1400, nome:'Pista Molhada',
+   desc:'Chuva reduz atrito drasticamente! Com a_max = 2.5 m/s², v_max = √(2.5 × 80) = 14.1 m/s. Cuidado!'},
+  {r:20,  v:5,    amax:2.5,  m:1200, nome:'Retorno Fechado',
+   desc:'Raio mínimo (20m) exige velocidade muito baixa. v_max = √(2.5 × 20) = 7.1 m/s. Freie sempre antes!'},
+  {r:250, v:40,   amax:7.0,  m:1500, nome:'Rodovia Seca',
+   desc:'Rodovia com boa superelevação. Raio amplo e asfalto seco permitem velocidades elevadas com segurança.'},
+  {r:50,  v:22,   amax:4.0,  m:1200, nome:'Derrapagem Demo',
+   desc:'Velocidade acima do limite (22 > 14.1 m/s). a_c = 22²/50 = 9.68 m/s² — mais que o DOBRO do limite!'},
+];
+
+let rodando=false, animId=null, carAngle=0, tempo=0, lastFrame=0;
+let chartAcData=[], chartAmaxData=[], chartLabels=[];
+let trailPts=[];
+
+/* ══ CHART ══ */
+const chartCtx = document.getElementById('chartCanvas').getContext('2d');
+const chart = new Chart(chartCtx, {
+  type:'line',
+  data:{
+    labels:[],
+    datasets:[
+      {label:'a_c atual (m/s²)', data:[], borderColor:'#f1c40f', backgroundColor:'rgba(241,196,15,0.08)', borderWidth:2, pointRadius:0, tension:.35, fill:true},
+      {label:'a_max (limite)',   data:[], borderColor:'#ff4444', borderDash:[7,4], borderWidth:1.5, pointRadius:0, tension:0, fill:false},
+    ]
+  },
+  options:{
+    animation:false, responsive:true, maintainAspectRatio:false,
+    plugins:{
+      legend:{labels:{color:'rgba(212,245,226,0.45)',font:{size:10,family:'Space Mono'},boxWidth:20}},
+      tooltip:{enabled:false}
+    },
+    scales:{
+      x:{ticks:{color:'rgba(212,245,226,0.25)',font:{size:8},maxTicksLimit:8},
+         grid:{color:'rgba(255,255,255,0.03)'},
+         title:{display:true,text:'Tempo (s)',color:'rgba(212,245,226,0.25)',font:{size:9}}},
+      y:{ticks:{color:'rgba(212,245,226,0.25)',font:{size:9}},
+         grid:{color:'rgba(255,255,255,0.04)'},
+         title:{display:true,text:'a_c (m/s²)',color:'rgba(212,245,226,0.25)',font:{size:9}},
+         min:0}
+    }
+  }
+});
+
+/* ══ CANVAS PISTA ══ */
+const tc = document.getElementById('trackCanvas');
+const tCtx = tc.getContext('2d');
+
+/* ══ CANVAS MEDIDOR ══ */
+const rc = document.getElementById('riskCanvas');
+const rCtx = rc.getContext('2d');
+
+function resizeTrack(){
+  const box = document.getElementById('track-box');
+  const sz = Math.min(box.clientWidth - 22, box.clientHeight - 36);
+  tc.width = Math.max(sz, 140);
+  tc.height = Math.max(sz, 140);
+}
+
+function getParams(){
+  return {
+    R:    parseFloat(document.getElementById('sl-r').value),
+    v:    parseFloat(document.getElementById('sl-v').value),
+    m:    parseFloat(document.getElementById('sl-massa').value),
+    amax: parseFloat(document.getElementById('sl-amax').value),
+  };
+}
+
+function drawRiskMeter(pct){
+  const W=120, H=70, cx=60, cy=65, r=52;
+  rCtx.clearRect(0,0,W,H);
+
+  // Track do medidor (semicírculo)
+  rCtx.strokeStyle='rgba(255,255,255,0.06)'; rCtx.lineWidth=10;
+  rCtx.beginPath(); rCtx.arc(cx,cy,r,Math.PI,0); rCtx.stroke();
+
+  // Preenchimento colorido
+  const p=Math.min(pct,1.3);
+  const endAngle = Math.PI + p*Math.PI;
+  const color = p>=1?'#ff4444':p>=0.8?'#f1c40f':'#00ff88';
+  rCtx.strokeStyle=color; rCtx.lineWidth=10;
+  rCtx.shadowBlur=8; rCtx.shadowColor=color;
+  rCtx.beginPath(); rCtx.arc(cx,cy,r,Math.PI,Math.min(endAngle,Math.PI*2)); rCtx.stroke();
+  rCtx.shadowBlur=0;
+
+  // Ponteiro
+  const needleAngle = Math.PI + Math.min(p,1)*Math.PI;
+  rCtx.strokeStyle='#fff'; rCtx.lineWidth=2; rCtx.lineCap='round';
+  rCtx.beginPath();
+  rCtx.moveTo(cx,cy);
+  rCtx.lineTo(cx+r*0.8*Math.cos(needleAngle), cy+r*0.8*Math.sin(needleAngle));
+  rCtx.stroke();
+  rCtx.fillStyle='#fff'; rCtx.beginPath(); rCtx.arc(cx,cy,4,0,Math.PI*2); rCtx.fill();
+
+  // Labels
+  rCtx.fillStyle='rgba(212,245,226,0.3)'; rCtx.font='7px Space Mono'; rCtx.textAlign='center';
+  rCtx.fillText('0%',cx-r-2,cy+10);
+  rCtx.fillText('100%',cx+r+4,cy+10);
+}
+
+function drawTrack(){
+  const W=tc.width, H=tc.height;
+  tCtx.clearRect(0,0,W,H);
+
+  const {R,v,amax} = getParams();
+  const ac=(v*v)/R;
+  const derrapando = ac>amax*1.05;
+  const pct = ac/amax;
+
+  const cx=W/2, cy=H/2;
+  const Rpx = Math.min(W,H)*0.38;
+  const trackW = Math.max(18, Rpx*0.14);
+
+  // Fundo
+  const bg=tCtx.createRadialGradient(cx,cy,10,cx,cy,Math.max(W,H)*0.65);
+  bg.addColorStop(0,'#071a2f'); bg.addColorStop(1,'#050c14');
+  tCtx.fillStyle=bg; tCtx.fillRect(0,0,W,H);
+
+  // Grid sutil
+  tCtx.save(); tCtx.strokeStyle='rgba(0,255,136,0.03)'; tCtx.lineWidth=1;
+  for(let x=0;x<W;x+=30){tCtx.beginPath();tCtx.moveTo(x,0);tCtx.lineTo(x,H);tCtx.stroke();}
+  for(let y=0;y<H;y+=30){tCtx.beginPath();tCtx.moveTo(0,y);tCtx.lineTo(W,y);tCtx.stroke();}
+  tCtx.restore();
+
+  const cor = derrapando?'#ff4444': pct>0.8?'#f1c40f':'#00ff88';
+
+  // Pista sombra
+  tCtx.strokeStyle='#0a0a0a'; tCtx.lineWidth=trackW+10;
+  tCtx.beginPath(); tCtx.arc(cx,cy+3,Rpx,0,Math.PI*2); tCtx.stroke();
+  // Asfalto
+  tCtx.strokeStyle='#161616'; tCtx.lineWidth=trackW+4;
+  tCtx.beginPath(); tCtx.arc(cx,cy,Rpx,0,Math.PI*2); tCtx.stroke();
+  tCtx.strokeStyle='#1d1d1d'; tCtx.lineWidth=trackW;
+  tCtx.beginPath(); tCtx.arc(cx,cy,Rpx,0,Math.PI*2); tCtx.stroke();
+
+  // Glow da pista
+  tCtx.strokeStyle=cor+'18'; tCtx.lineWidth=trackW+18;
+  tCtx.shadowBlur=25; tCtx.shadowColor=cor+'44';
+  tCtx.beginPath(); tCtx.arc(cx,cy,Rpx,0,Math.PI*2); tCtx.stroke();
+  tCtx.shadowBlur=0;
+
+  // Bordas da pista
+  tCtx.strokeStyle='rgba(255,255,255,0.06)'; tCtx.lineWidth=1.5;
+  tCtx.beginPath(); tCtx.arc(cx,cy,Rpx+trackW/2-3,0,Math.PI*2); tCtx.stroke();
+  tCtx.beginPath(); tCtx.arc(cx,cy,Rpx-trackW/2+3,0,Math.PI*2); tCtx.stroke();
+
+  // Linha central amarela
+  tCtx.strokeStyle='rgba(255,220,0,0.3)'; tCtx.lineWidth=1.5; tCtx.setLineDash([12,10]);
+  tCtx.beginPath(); tCtx.arc(cx,cy,Rpx,0,Math.PI*2); tCtx.stroke();
+  tCtx.setLineDash([]);
+
+  // Marcadores de velocidade segura (arco verde até v_max)
+  const vmax = Math.sqrt(amax*R);
+  const fracSeg = Math.min(v/vmax, 1.5);
+  const arcSeg = fracSeg * Math.PI * 2;
+  tCtx.strokeStyle=cor+'66'; tCtx.lineWidth=3;
+  tCtx.beginPath(); tCtx.arc(cx,cy,Rpx-trackW/2+5,-Math.PI/2,-Math.PI/2+arcSeg); tCtx.stroke();
+
+  // Trail
+  if(trailPts.length>1){
+    for(let i=1;i<trailPts.length;i++){
+      const p=trailPts[i],pp=trailPts[i-1];
+      const a=(i/trailPts.length)*0.55;
+      tCtx.strokeStyle=derrapando?`rgba(255,80,0,${a})`:`rgba(0,255,136,${a})`;
+      tCtx.lineWidth=2*(i/trailPts.length)+1;
+      tCtx.beginPath(); tCtx.moveTo(pp.x,pp.y); tCtx.lineTo(p.x,p.y); tCtx.stroke();
+    }
+  }
+
+  // Posição do carro
+  const carX=cx+Rpx*Math.cos(carAngle);
+  const carY=cy+Rpx*Math.sin(carAngle);
+  const tang=carAngle+Math.PI/2;
+
+  // Skid marks se derrapando
+  if(derrapando){
+    tCtx.save();
+    tCtx.strokeStyle='rgba(60,30,0,0.7)'; tCtx.lineWidth=3;
+    [-6,6].forEach(offset=>{
+      tCtx.beginPath();
+      tCtx.moveTo(carX+Math.cos(tang+Math.PI)*15+offset*Math.cos(tang),
+                  carY+Math.sin(tang+Math.PI)*15+offset*Math.sin(tang));
+      tCtx.lineTo(carX+offset*Math.cos(tang), carY+offset*Math.sin(tang));
+      tCtx.stroke();
+    });
+    tCtx.restore();
+  }
+
+  // Vetor centrípeto
+  tCtx.save();
+  tCtx.strokeStyle='rgba(0,170,255,0.45)'; tCtx.lineWidth=1.5; tCtx.setLineDash([4,5]);
+  tCtx.beginPath(); tCtx.moveTo(carX,carY); tCtx.lineTo(cx,cy); tCtx.stroke();
+  tCtx.setLineDash([]);
+  const dx=cx-carX,dy=cy-carY,len=Math.sqrt(dx*dx+dy*dy);
+  const nx=dx/len,ny=dy/len;
+  tCtx.fillStyle='rgba(0,170,255,0.55)';
+  tCtx.beginPath();
+  tCtx.moveTo(cx,cy);
+  tCtx.lineTo(cx-nx*10+ny*5,cy-ny*10-nx*5);
+  tCtx.lineTo(cx-nx*10-ny*5,cy-ny*10+nx*5);
+  tCtx.fill();
+  tCtx.restore();
+
+  // Vetor tangencial (velocidade)
+  tCtx.save();
+  tCtx.strokeStyle='rgba(0,255,136,0.4)'; tCtx.lineWidth=1.5;
+  const vLen=Math.min(v*1.2,40);
+  const vx=carX+Math.cos(tang)*vLen, vy=carY+Math.sin(tang)*vLen;
+  tCtx.beginPath(); tCtx.moveTo(carX,carY); tCtx.lineTo(vx,vy); tCtx.stroke();
+  tCtx.fillStyle='rgba(0,255,136,0.5)';
+  tCtx.beginPath();
+  tCtx.moveTo(vx,vy);
+  tCtx.lineTo(vx-Math.cos(tang)*8+Math.cos(tang+Math.PI/2)*4,
+              vy-Math.sin(tang)*8+Math.sin(tang+Math.PI/2)*4);
+  tCtx.lineTo(vx-Math.cos(tang)*8-Math.cos(tang+Math.PI/2)*4,
+              vy-Math.sin(tang)*8-Math.sin(tang+Math.PI/2)*4);
+  tCtx.fill();
+  tCtx.restore();
+
+  // CARRO
+  drawCar(tCtx,carX,carY,tang,cor,derrapando);
+
+  // Centro — label
+  tCtx.save();
+  tCtx.fillStyle='rgba(0,0,0,0.65)'; tCtx.beginPath(); tCtx.arc(cx,cy,28,0,Math.PI*2); tCtx.fill();
+  tCtx.strokeStyle=cor+'44'; tCtx.lineWidth=1.5;
+  tCtx.beginPath(); tCtx.arc(cx,cy,28,0,Math.PI*2); tCtx.stroke();
+  tCtx.fillStyle='rgba(0,170,255,0.75)'; tCtx.font='bold 8px Space Mono'; tCtx.textAlign='center'; tCtx.textBaseline='middle';
+  tCtx.fillText('R='+R+'m',cx,cy-6);
+  tCtx.fillStyle=cor; tCtx.font='bold 8px Space Mono';
+  tCtx.fillText(ac.toFixed(1)+' m/s²',cx,cy+6);
+  tCtx.restore();
+
+  // Legenda vetores
+  tCtx.save();
+  tCtx.font='8px Space Mono'; tCtx.textAlign='left';
+  tCtx.fillStyle='rgba(0,170,255,0.5)'; tCtx.fillText('─── F_c (centrípeta)',8,H-22);
+  tCtx.fillStyle='rgba(0,255,136,0.5)'; tCtx.fillText('─── v (tangencial)',8,H-10);
+  tCtx.restore();
+}
+
+function drawCar(ctx,x,y,angle,cor,derrapando){
+  ctx.save();
+  ctx.translate(x,y); ctx.rotate(angle);
+  if(derrapando) ctx.rotate(Math.sin(Date.now()*0.018)*0.2);
+  ctx.shadowBlur=14; ctx.shadowColor=cor;
+  const g=ctx.createLinearGradient(-15,-8,15,8);
+  g.addColorStop(0,cor+'dd'); g.addColorStop(1,cor+'55');
+  ctx.fillStyle=g;
+  ctx.beginPath();
+  ctx.moveTo(-13,-6.5); ctx.lineTo(11,-8.5); ctx.lineTo(15,0); ctx.lineTo(11,8.5); ctx.lineTo(-13,6.5); ctx.closePath(); ctx.fill();
+  ctx.fillStyle='rgba(0,0,0,0.55)';
+  ctx.beginPath(); ctx.ellipse(-1,0,4.5,3,0,0,Math.PI*2); ctx.fill();
+  ctx.shadowBlur=0;
+  ctx.fillStyle='rgba(255,255,200,0.95)';
+  ctx.beginPath(); ctx.arc(15,0,2.2,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle='rgba(255,50,50,0.8)';
+  ctx.beginPath(); ctx.arc(-13,0,2,0,Math.PI*2); ctx.fill();
+  ctx.restore();
+}
+
+/* ══ ATUALIZAR HUD ══ */
+function atualizar(){
+  const {R,v,m,amax} = getParams();
+  const ac=(v*v)/R;
+  const fc=m*ac;
+  const T=(2*Math.PI*R)/v;
+  const f=1/T;
+  const omega=v/R;
+  const rpm=omega*60/(2*Math.PI);
+  const vmax=Math.sqrt(amax*R);
+  const pct=ac/amax;
+  const derrapando=ac>amax*1.05;
+  const margem=((vmax-v)/vmax*100);
+
+  // Sliders coloridos dinâmicos
+  const rPct=((R-10)/(300-10)*100).toFixed(0);
+  const vPct=((v-1)/(80-1)*100).toFixed(0);
+  const amPct=((amax-1)/(15-1)*100).toFixed(0);
+  const mPct=((m-500)/(5000-500)*100).toFixed(0);
+  document.getElementById('sl-r').style.background=`linear-gradient(to right,var(--azul) ${rPct}%,rgba(0,170,255,.12) ${rPct}%)`;
+  document.getElementById('sl-v').style.background=`linear-gradient(to right,${derrapando?'#ff4444':'var(--verde)'} ${vPct}%,rgba(0,255,136,.1) ${vPct}%)`;
+  document.getElementById('sl-amax').style.background=`linear-gradient(to right,var(--purple) ${amPct}%,rgba(162,155,254,.1) ${amPct}%)`;
+  document.getElementById('sl-massa').style.background=`linear-gradient(to right,var(--gold) ${mPct}%,rgba(241,196,15,.1) ${mPct}%)`;
+
+  document.getElementById('val-r').textContent=R+' m';
+  document.getElementById('val-v').textContent=v.toFixed(1)+' m/s ('+(v*3.6).toFixed(0)+' km/h)';
+  document.getElementById('val-amax').textContent=amax.toFixed(1)+' m/s²';
+  document.getElementById('val-m').textContent=(m/1000).toFixed(1)+' t';
+
+  // Stats
+  document.getElementById('st-v').textContent =v.toFixed(1)+' m/s';
+  document.getElementById('st-ac').textContent=ac.toFixed(2)+' m/s²';
+  document.getElementById('st-ac').style.color=derrapando?'#ff4444':pct>0.8?'#f1c40f':'var(--gold)';
+  document.getElementById('st-fc').textContent=(fc/1000).toFixed(1)+' kN';
+  document.getElementById('st-t').textContent =T.toFixed(2)+' s';
+  document.getElementById('st-f').textContent =f.toFixed(2)+' Hz';
+  document.getElementById('st-vmax').textContent=vmax.toFixed(1)+' m/s';
+
+  // Barra
+  const fill=document.getElementById('safety-fill');
+  fill.style.width=Math.min(pct*100,100)+'%';
+  fill.style.background=pct>=1?'#ff4444':pct>=0.8?'#f1c40f':'#00ff88';
+  document.getElementById('safety-pct').textContent=Math.round(pct*100)+'%';
+  document.getElementById('safety-pct').style.color=pct>=1?'#ff4444':pct>=0.8?'#f1c40f':'#00ff88';
+  document.getElementById('safety-desc').textContent=derrapando?'DERRAPAGEM!':pct>0.8?'próximo do limite':'seguro';
+  document.getElementById('safety-desc').style.color=derrapando?'#ff4444':pct>0.8?'#f1c40f':'var(--muted)';
+
+  // Status
+  const tag=document.getElementById('status-tag');
+  if(!rodando){
+    tag.className='st-idle'; tag.textContent='Clique em SIMULAR para iniciar · v_max segura = '+vmax.toFixed(1)+' m/s';
+  } else if(derrapando){
+    tag.className='st-danger'; tag.textContent='⚠ DERRAPAGEM! a_c='+ac.toFixed(2)+' > '+amax.toFixed(1)+' m/s² · Reduza para '+vmax.toFixed(1)+' m/s';
+  } else {
+    tag.className='st-ok'; tag.textContent='✓ SEGURO · a_c='+ac.toFixed(2)+' m/s² · '+Math.round(pct*100)+'% do limite · v_max='+vmax.toFixed(1)+' m/s';
+  }
+
+  // Info card
+  document.getElementById('ic-ac').textContent   =ac.toFixed(3)+' m/s²';
+  document.getElementById('ic-fc').textContent   =(fc/1000).toFixed(2)+' kN';
+  document.getElementById('ic-vmax').textContent =vmax.toFixed(2)+' m/s ('+(vmax*3.6).toFixed(0)+' km/h)';
+  const margemEl=document.getElementById('ic-margin');
+  margemEl.textContent=derrapando?'ACIMA DO LIMITE!':(margem.toFixed(1)+'% abaixo');
+  margemEl.style.color=derrapando?'#ff4444':'#00ff88';
+  document.getElementById('ic-omega').textContent=omega.toFixed(3)+' rad/s';
+  document.getElementById('ic-rpm').textContent  =rpm.toFixed(1)+' rpm';
+
+  // Medidor de risco
+  drawRiskMeter(pct);
+  document.getElementById('risk-val').textContent=Math.round(pct*100)+'%';
+  document.getElementById('risk-val').style.color=pct>=1?'#ff4444':pct>=0.8?'#f1c40f':'#00ff88';
+
+  // Interpretação
+  let interp='';
+  if(derrapando) interp=`⚠ <strong style="color:#ff4444">Derrapagem!</strong> A aceleração centrípeta (${ac.toFixed(1)} m/s²) supera o limite de atrito (${amax.toFixed(1)} m/s²). O veículo sai da curva. Reduza v para ${vmax.toFixed(1)} m/s.`;
+  else if(pct>0.8) interp=`⚡ Atenção: você está usando ${Math.round(pct*100)}% do atrito disponível. Qualquer solavanco ou frenagem pode causar perda de controle. v_max = ${vmax.toFixed(1)} m/s.`;
+  else interp=`✓ Situação segura. O veículo percorre a curva com a_c = ${ac.toFixed(2)} m/s², ${Math.round(margem)}% abaixo do limite. T = ${T.toFixed(2)}s por volta. F_c = ${(fc/1000).toFixed(1)} kN.`;
+  document.getElementById('interp-text').innerHTML=interp;
+
+  drawTrack();
+}
+
+/* ══ SIM LOOP ══ */
+function simLoop(t){
+  if(!rodando) return;
+  const dt=Math.min((t-lastFrame)/1000,0.05);
+  lastFrame=t;
+  tempo+=dt;
+
+  const {R,v,amax} = getParams();
+  const ac=(v*v)/R;
+  const derrapando=ac>amax*1.05;
+  const omega=v/R;
+  carAngle+=omega*dt*(derrapando?1.12:1);
+
+  // Trail
+  const cx=tc.width/2, cy=tc.height/2;
+  const Rpx=Math.min(tc.width,tc.height)*0.38;
+  trailPts.push({x:cx+Rpx*Math.cos(carAngle), y:cy+Rpx*Math.sin(carAngle)});
+  if(trailPts.length>90) trailPts.shift();
+
+  // Gráfico
+  if(chartLabels.length===0||(tempo-parseFloat(chartLabels[chartLabels.length-1]||0))>=0.15){
+    chartLabels.push(tempo.toFixed(1));
+    chartAcData.push(ac);
+    chartAmaxData.push(amax);
+    if(chartLabels.length>80){ chartLabels.shift(); chartAcData.shift(); chartAmaxData.shift(); }
+    chart.data.labels=chartLabels;
+    chart.data.datasets[0].data=chartAcData;
+    chart.data.datasets[0].borderColor=derrapando?'#ff4444':'#f1c40f';
+    chart.data.datasets[0].backgroundColor=derrapando?'rgba(255,68,68,0.08)':'rgba(241,196,15,0.08)';
+    chart.data.datasets[1].data=chartAmaxData;
+    chart.update('none');
+  }
+
+  atualizar();
+  animId=requestAnimationFrame(simLoop);
+}
+
+function toggleSim(){
+  rodando=!rodando;
+  const btn=document.getElementById('btn-sim');
+  if(rodando){ btn.textContent='⏸ PAUSAR'; lastFrame=performance.now(); animId=requestAnimationFrame(simLoop); }
+  else { btn.textContent='▶ SIMULAR'; cancelAnimationFrame(animId); }
+}
+
+function resetar(){
+  rodando=false; cancelAnimationFrame(animId);
+  carAngle=0; trailPts=[]; chartAcData=[]; chartAmaxData=[]; chartLabels=[]; tempo=0;
+  chart.data.labels=[]; chart.data.datasets.forEach(d=>d.data=[]);
+  chart.update('none');
+  document.getElementById('btn-sim').textContent='▶ SIMULAR';
+  atualizar();
+}
+
+function aplicarPreset(i){
+  const p=PRESETS[i];
+  document.getElementById('sl-r').value=p.r;
+  document.getElementById('sl-v').value=p.v;
+  document.getElementById('sl-amax').value=p.amax;
+  document.getElementById('sl-massa').value=p.m;
+  document.querySelectorAll('.preset-btn').forEach((b,j)=>b.classList.toggle('active',j===i));
+  const tag=document.getElementById('status-tag');
+  tag.className='st-idle'; tag.textContent=p.desc;
+  resetar();
+}
+
+function fecharOverlay(){
+  document.getElementById('overlay').style.display='none';
+  resizeTrack(); atualizar();
+}
+
+window.addEventListener('resize',()=>{ resizeTrack(); drawTrack(); drawRiskMeter(0); });
+resizeTrack();
+aplicarPreset(0);
+</script>
+</body>
+</html>
