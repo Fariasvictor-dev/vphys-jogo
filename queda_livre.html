@@ -1,0 +1,798 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<title>V-PHYS | Queda Livre — Laboratório de Galileu</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root {
+  --verde: #2ecc71; --verde2: #27ae60;
+  --amarelo: #f1c40f; --vermelho: #e74c3c; --azul: #3498db;
+  --bg: #060d09; --panel: #0e1a10; --panel2: #121e14;
+  --border: rgba(46,204,113,0.16); --text: #dff0e6; --dim: rgba(223,240,230,0.48);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Outfit',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding:18px 14px 40px;display:flex;flex-direction:column;align-items:center}
+
+/* HEADER */
+.hdr{width:100%;max-width:1060px;display:flex;justify-content:space-between;align-items:flex-end;border-bottom:1px solid var(--verde);padding-bottom:11px;margin-bottom:18px}
+.hdr-l{display:flex;flex-direction:column;gap:4px}
+.badge{background:var(--verde);color:#000;padding:3px 10px;border-radius:4px;font-weight:700;font-size:.7rem;letter-spacing:.08em;display:inline-block}
+.hdr h2{font-size:1.28rem;font-weight:600;letter-spacing:-.01em}
+.hdr-r{text-align:right}
+.brand{color:var(--verde);font-family:'Space Mono',monospace;font-size:.72rem;letter-spacing:.12em}
+.sub{font-size:.68rem;color:var(--dim);margin-top:2px}
+
+/* TABS */
+.tabs{width:100%;max-width:1060px;display:flex;gap:4px;margin-bottom:16px}
+.tab-btn{padding:7px 18px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--dim);cursor:pointer;font-family:'Outfit',sans-serif;font-size:.82rem;transition:all .18s}
+.tab-btn.active{background:var(--verde);color:#000;font-weight:700;border-color:var(--verde)}
+.tab-btn:hover:not(.active){border-color:var(--verde);color:var(--text)}
+.tab-content{display:none;width:100%;max-width:1060px}
+.tab-content.active{display:block}
+
+/* MAIN LAYOUT */
+.main-layout{display:flex;gap:16px;width:100%}
+
+/* CONTROLS */
+.controls{background:var(--panel);padding:18px;border-radius:12px;width:270px;flex-shrink:0;border:1px solid var(--border);display:flex;flex-direction:column;gap:12px}
+.cg{background:rgba(255,255,255,.03);padding:12px;border-radius:8px}
+.cg label{display:block;font-size:.78rem;color:var(--verde);font-weight:700;margin-bottom:7px;text-transform:uppercase;letter-spacing:.06em}
+.cg select,.cg input[type=range]{width:100%;background:#0a120b;color:var(--text);border:1px solid rgba(46,204,113,.2);padding:6px 8px;border-radius:5px;font-family:'Outfit',sans-serif;font-size:.82rem;cursor:pointer}
+.cg .cg-info{font-size:.72rem;color:var(--dim);margin-top:6px;font-style:italic;line-height:1.5}
+.cg .val{font-family:'Space Mono',monospace;color:var(--verde);font-size:.9rem}
+
+.btn-go{background:var(--verde);color:#000;border:none;padding:11px;border-radius:7px;font-weight:700;cursor:pointer;width:100%;font-family:'Outfit',sans-serif;font-size:.88rem;letter-spacing:.04em;transition:all .18s;margin-top:4px}
+.btn-go:hover{filter:brightness(1.12)}
+.btn-rst{background:transparent;color:var(--dim);border:1px solid var(--border);padding:9px;border-radius:7px;cursor:pointer;font-family:'Outfit',sans-serif;font-size:.82rem;width:100%;transition:all .18s}
+.btn-rst:hover{border-color:var(--verde);color:var(--text)}
+
+/* SLOW-MOTION SPEED BUTTONS */
+.speed-row{display:flex;gap:5px;margin-top:4px}
+.spd-btn{flex:1;background:var(--panel2);border:1px solid var(--border);color:var(--dim);padding:6px 3px;border-radius:6px;cursor:pointer;font-size:.74rem;font-family:'Outfit',sans-serif;transition:all .18s;text-align:center}
+.spd-btn.active{background:rgba(46,204,113,.15);border-color:var(--verde);color:var(--verde);font-weight:700}
+.spd-btn:hover:not(.active){border-color:var(--verde);color:var(--text)}
+
+/* TERMINAL VELOCITY GLOW */
+@keyframes termGlow{
+  0%,100%{text-shadow:0 0 6px #f1c40f,0 0 14px #f1c40f;color:#f1c40f}
+  50%    {text-shadow:0 0 14px #fff,0 0 28px #f1c40f;color:#fff}
+}
+.terminal-reached{animation:termGlow 1s ease-in-out infinite!important}
+
+/* STATS */
+.stats-row{display:flex;gap:8px;margin-bottom:12px}
+.sc{flex:1;background:var(--panel2);border-radius:7px;padding:9px 12px;border:1px solid var(--border)}
+.sc .sl{font-size:.64rem;text-transform:uppercase;letter-spacing:.07em;color:var(--dim)}
+.sc .sv{font-family:'Space Mono',monospace;font-size:1.05rem;font-weight:700;margin-top:2px}
+.sv-t{color:var(--azul)} .sv-v1{color:var(--verde)} .sv-v2{color:var(--amarelo)}
+
+/* DROP AREA */
+.drop-zone{flex:1;display:flex;flex-direction:column;gap:12px;min-width:0}
+.drop-arena{position:relative;border-radius:12px;overflow:hidden;border:1px solid var(--border);flex:1;min-height:420px;background:linear-gradient(180deg,#04090505 0%,#060f08 60%,#081208 100%)}
+
+/* Tower of Pisa background */
+.pisa-bg{position:absolute;right:0;bottom:0;width:100%;height:100%;pointer-events:none;overflow:hidden}
+.pisa-bg svg{position:absolute;bottom:0;right:10px;opacity:.09;height:95%}
+
+/* lane labels */
+.lane-label{position:absolute;top:10px;font-size:.7rem;text-transform:uppercase;letter-spacing:.08em;color:var(--dim);font-family:'Space Mono',monospace}
+#ll1{left:28%} #ll2{right:14%}
+
+/* ground */
+.ground{position:absolute;bottom:0;width:100%;height:22px;background:linear-gradient(180deg,#1a3020,#0e1e12);border-top:2px solid var(--verde)}
+
+/* height ruler */
+.ruler{position:absolute;left:8px;top:0;bottom:22px;width:18px;display:flex;flex-direction:column;justify-content:space-between;align-items:center;pointer-events:none}
+.ruler-line{width:8px;height:1px;background:rgba(46,204,113,.25)}
+.ruler-num{font-size:.55rem;color:rgba(46,204,113,.4);font-family:'Space Mono',monospace}
+
+/* ── 3D OBJECTS ── */
+.obj3d{position:absolute;transform:translateX(-50%);z-index:6;will-change:top;transition:none}
+#obj1-wrap{left:32%} #obj2-wrap{left:72%}
+
+/* CANNONBALL */
+.ball-3d{width:48px;height:48px;border-radius:50%;position:relative;cursor:default}
+.ball-cannon{background:radial-gradient(circle at 35% 32%,#8a8a8a,#3a3a3a 55%,#111 100%);box-shadow:0 6px 18px rgba(0,0,0,.7),inset -4px -4px 10px rgba(0,0,0,.5),inset 3px 3px 8px rgba(255,255,255,.12)}
+.ball-cannon::after{content:'';position:absolute;top:12%;left:18%;width:30%;height:22%;border-radius:50%;background:rgba(255,255,255,.18);transform:rotate(-30deg)}
+
+/* APPLE */
+.ball-apple{background:radial-gradient(circle at 38% 30%,#e74c3c,#c0392b 60%,#7d1f1f 100%);box-shadow:0 6px 18px rgba(0,0,0,.6),inset -3px -3px 10px rgba(0,0,0,.45),inset 2px 2px 7px rgba(255,100,80,.3)}
+.ball-apple::before{content:'🍃';position:absolute;top:-14px;left:50%;transform:translateX(-50%);font-size:14px}
+.ball-apple::after{content:'';position:absolute;top:10%;left:20%;width:25%;height:18%;border-radius:50%;background:rgba(255,255,255,.22);transform:rotate(-20deg)}
+
+/* FEATHER — flat stylized */
+.feather-3d{width:28px;height:52px;position:relative}
+.feather-3d svg{width:100%;height:100%;filter:drop-shadow(0 4px 8px rgba(0,0,0,.5))}
+
+/* PAPER — folded 3d */
+.paper-3d{width:38px;height:44px;position:relative}
+.paper-face{position:absolute;background:linear-gradient(135deg,#e8e0d0,#c8bfae);border:1px solid #a09880}
+.paper-main{width:38px;height:42px;top:0;left:0;border-radius:2px;box-shadow:2px 2px 8px rgba(0,0,0,.6);transform:perspective(120px) rotateX(6deg) rotateY(-6deg)}
+.paper-fold{width:16px;height:16px;top:0;right:0;background:linear-gradient(225deg,#a09880,#e8e0d0);clip-path:polygon(100% 0,100% 100%,0 0);border-radius:0 2px 0 0}
+
+/* TRAIL */
+.trail-dot{position:absolute;border-radius:50%;pointer-events:none;animation:trailFade 0.9s ease-out forwards}
+@keyframes trailFade{0%{opacity:.55;transform:scale(1)}100%{opacity:0;transform:scale(.2)}}
+
+/* FORCE VECTORS */
+.force-wrap{position:absolute;left:50%;transform:translateX(-50%);top:52px;pointer-events:none}
+
+/* IMPACT FLASH */
+.impact{position:absolute;border-radius:50%;pointer-events:none;animation:impactAnim .5s ease-out forwards}
+@keyframes impactAnim{0%{transform:scale(.3);opacity:.9}100%{transform:scale(3);opacity:0}}
+
+/* GRAPH PANEL */
+.graph-panel{background:var(--panel2);border-radius:10px;padding:14px;border:1px solid var(--border)}
+.graph-tabs{display:flex;gap:5px;margin-bottom:12px}
+.gtab{padding:5px 14px;border-radius:5px;border:1px solid var(--border);background:transparent;color:var(--dim);cursor:pointer;font-family:'Outfit',sans-serif;font-size:.78rem;transition:all .15s}
+.gtab.active{background:rgba(46,204,113,.15);border-color:var(--verde);color:var(--verde);font-weight:700}
+.gtab:hover:not(.active){border-color:var(--verde);color:var(--text)}
+.gpane{display:none} .gpane.active{display:block}
+.gpane canvas{width:100%!important}
+.graph-legend{display:flex;gap:16px;margin-top:8px}
+.gl-item{display:flex;align-items:center;gap:6px;font-size:.72rem;color:var(--dim)}
+.gl-dot{width:20px;height:3px;border-radius:2px}
+
+/* ── GUIDE ── */
+.guide-hero{background:linear-gradient(135deg,#0c1d10,#0f2416);border:1px solid var(--border);border-radius:14px;padding:28px 32px;margin-bottom:18px}
+.guide-hero h3{margin:0 0 8px;font-size:1.1rem;color:var(--verde)}
+.guide-hero p{margin:0;color:var(--dim);line-height:1.7;font-size:.88rem}
+.guide-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:12px;margin-bottom:18px}
+.guide-card{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:18px}
+.guide-card .gc-icon{font-size:1.6rem;margin-bottom:8px}
+.guide-card h4{margin:0 0 7px;font-size:.9rem;color:var(--verde)}
+.guide-card p,.guide-card li{font-size:.82rem;color:var(--dim);line-height:1.6;margin:0}
+.guide-card ul{padding-left:15px;margin-top:5px}
+.guide-card li{margin-bottom:3px}
+.gtable{width:100%;border-collapse:collapse;background:var(--panel);border-radius:12px;overflow:hidden;border:1px solid var(--border);margin-bottom:18px}
+.gtable th{background:rgba(46,204,113,.1);padding:10px 14px;font-size:.76rem;text-align:left;letter-spacing:.05em;text-transform:uppercase;color:var(--verde);border-bottom:1px solid var(--border)}
+.gtable td{padding:9px 14px;font-size:.82rem;border-bottom:1px solid rgba(46,204,113,.06);color:var(--dim)}
+.gtable tr:last-child td{border-bottom:none}
+.gtable td:first-child{font-family:'Space Mono',monospace;color:var(--text);font-size:.76rem}
+.fml-row{display:flex;gap:10px;flex-wrap:wrap}
+.fml-item{background:rgba(0,0,0,.3);border-left:3px solid var(--verde);border-radius:0 6px 6px 0;padding:9px 14px;font-family:'Space Mono',monospace;font-size:.82rem;color:var(--verde);flex:1;min-width:200px}
+.fml-item span{display:block;font-family:'Outfit',sans-serif;font-size:.7rem;color:var(--dim);margin-top:3px}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <div class="hdr-l">
+    <span class="badge">1º ANO · DINÂMICA</span>
+    <h2>Laboratório de Galileu — Queda Livre & Resistência do Ar</h2>
+  </div>
+  <div class="hdr-r">
+    <div class="brand">V-PHYS</div>
+    <div class="sub" id="mode-badge">MODO: TERRA (COM AR)</div>
+  </div>
+</div>
+
+<div class="tabs">
+  <button class="tab-btn active" onclick="showTab('sim',this)">⚡ Simulador</button>
+  <button class="tab-btn" onclick="showTab('guide',this)">📖 Como Usar</button>
+</div>
+
+<!-- ══════ SIMULADOR ══════ -->
+<div class="tab-content active" id="tab-sim">
+  <div class="main-layout">
+
+    <!-- CONTROLS -->
+    <div class="controls">
+      <div class="cg">
+        <label>🌍 Planeta / Meio</label>
+        <select id="medium" onchange="reset()">
+          <option value="ar">Terra — Com Ar (g=9.81)</option>
+          <option value="vacuo">Terra — Vácuo (g=9.81)</option>
+          <option value="lua">Lua — Vácuo (g=1.62)</option>
+          <option value="marte">Marte — Vácuo (g=3.72)</option>
+          <option value="jupiter">Júpiter — Vácuo (g=24.8)</option>
+        </select>
+        <div class="cg-info" id="info-ar">A resistência do ar age contra o movimento, desacelerando objetos leves.</div>
+      </div>
+
+      <div class="cg">
+        <label>📏 Altura: <span class="val" id="h-val">50</span> m</label>
+        <input type="range" id="h-range" min="10" max="120" value="50" oninput="onH()">
+      </div>
+
+      <div class="cg">
+        <label>⬅ Objeto Esquerdo</label>
+        <select id="sel1" onchange="reset()">
+          <option value="cannon">Bala de Canhão</option>
+          <option value="apple">Maçã</option>
+          <option value="feather">Pena</option>
+          <option value="paper">Folha de Papel</option>
+        </select>
+      </div>
+
+      <div class="cg">
+        <label>➡ Objeto Direito</label>
+        <select id="sel2" onchange="reset()">
+          <option value="feather" selected>Pena</option>
+          <option value="cannon">Bala de Canhão</option>
+          <option value="apple">Maçã</option>
+          <option value="paper">Folha de Papel</option>
+        </select>
+      </div>
+
+      <div class="cg">
+        <label>🔍 Vetores de Força</label>
+        <select id="show-vectors" onchange="reset()">
+          <option value="1">Mostrar Setas</option>
+          <option value="0">Ocultar Setas</option>
+        </select>
+      </div>
+
+      <button class="btn-go" onclick="start()">▼ SOLTAR OBJETOS</button>
+      <button class="btn-rst" onclick="reset()">↺ Resetar</button>
+      <div class="cg" style="margin-top:4px">
+        <label>🐢 Velocidade de Simulação</label>
+        <div class="speed-row">
+          <button class="spd-btn" onclick="setSpeed(0.1,this)">0.1×</button>
+          <button class="spd-btn" onclick="setSpeed(0.25,this)">0.25×</button>
+          <button class="spd-btn" onclick="setSpeed(0.5,this)">0.5×</button>
+          <button class="spd-btn active" onclick="setSpeed(1,this)">1×</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- VISUAL AREA -->
+    <div class="drop-zone">
+      <!-- STATS -->
+      <div class="stats-row">
+        <div class="sc"><div class="sl">Tempo</div><div class="sv sv-t" id="sv-t">0.000 s</div></div>
+        <div class="sc"><div class="sl" id="sl1">Obj. Esq. v</div><div class="sv sv-v1" id="sv-v1">0.00 m/s</div></div>
+        <div class="sc"><div class="sl" id="sl2">Obj. Dir. v</div><div class="sv sv-v2" id="sv-v2">0.00 m/s</div></div>
+        <div class="sc" id="term-card" style="display:none;border-color:rgba(241,196,15,.4)">
+          <div class="sl" style="color:#f1c40f">⚡ TERMINAL</div>
+          <div class="sv" id="sv-term" style="color:#f1c40f;font-size:.82rem">—</div>
+        </div>
+      </div>
+
+      <!-- ARENA -->
+      <div class="drop-arena" id="arena">
+        <!-- Pisa tower SVG background -->
+        <div class="pisa-bg">
+          <svg viewBox="0 0 200 600" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <!-- Tower of Pisa stylized -->
+            <rect x="60" y="480" width="80" height="110" rx="3" fill="white"/>
+            <rect x="55" y="460" width="90" height="24" rx="2" fill="white"/>
+            <rect x="50" y="436" width="100" height="28" rx="2" fill="white"/>
+            <rect x="55" y="412" width="90" height="28" rx="2" fill="white"/>
+            <rect x="58" y="388" width="85" height="28" rx="2" fill="white"/>
+            <rect x="60" y="364" width="80" height="28" rx="2" fill="white"/>
+            <rect x="62" y="340" width="76" height="28" rx="2" fill="white"/>
+            <rect x="64" y="316" width="72" height="28" rx="2" fill="white"/>
+            <rect x="62" y="292" width="72" height="28" rx="2" fill="white"/>
+            <!-- columns suggestion -->
+            <line x1="75" y1="292" x2="75" y2="590" stroke="rgba(0,0,0,0.15)" stroke-width="2"/>
+            <line x1="100" y1="292" x2="100" y2="590" stroke="rgba(0,0,0,0.15)" stroke-width="2"/>
+            <line x1="125" y1="292" x2="125" y2="590" stroke="rgba(0,0,0,0.15)" stroke-width="2"/>
+            <!-- bell top -->
+            <ellipse cx="98" cy="292" rx="38" ry="12" fill="white"/>
+            <rect x="80" y="268" width="36" height="26" rx="2" fill="white"/>
+            <ellipse cx="98" cy="268" rx="18" ry="6" fill="white"/>
+          </svg>
+        </div>
+
+        <!-- ruler -->
+        <div class="ruler" id="ruler"></div>
+
+        <!-- lane labels -->
+        <div class="lane-label" id="ll1">OBJ. A</div>
+        <div class="lane-label" id="ll2">OBJ. B</div>
+
+        <!-- OBJECTS -->
+        <div class="obj3d" id="obj1-wrap">
+          <div id="obj1-body"></div>
+          <div class="force-wrap" id="fv1" style="display:none">
+            <svg id="fvg1" width="50" height="80" viewBox="0 0 50 80"></svg>
+          </div>
+        </div>
+        <div class="obj3d" id="obj2-wrap">
+          <div id="obj2-body"></div>
+          <div class="force-wrap" id="fv2" style="display:none">
+            <svg id="fvg2" width="50" height="80" viewBox="0 0 50 80"></svg>
+          </div>
+        </div>
+
+        <div class="ground"></div>
+      </div>
+
+      <!-- GRAPH PANEL -->
+      <div class="graph-panel">
+        <div class="graph-tabs">
+          <button class="gtab active" onclick="switchG('V',this)">📈 Velocidade × Tempo</button>
+          <button class="gtab" onclick="switchG('S',this)">📍 Posição × Tempo</button>
+        </div>
+        <div class="gpane active" id="gpane-V"><canvas id="chartV" height="130"></canvas></div>
+        <div class="gpane" id="gpane-S"><canvas id="chartS" height="130"></canvas></div>
+        <div class="graph-legend">
+          <div class="gl-item"><div class="gl-dot" style="background:var(--verde)"></div><span id="leg1">Obj. Esq.</span></div>
+          <div class="gl-item"><div class="gl-dot" style="background:var(--amarelo)"></div><span id="leg2">Obj. Dir.</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════ GUIA ══════ -->
+<div class="tab-content" id="tab-guide">
+  <div class="guide-hero">
+    <h3>📖 Como usar o Laboratório de Galileu</h3>
+    <p>Este simulador recria o famoso experimento de Galileu: dois objetos de massas diferentes são soltos da mesma altura. No vácuo, ambos chegam ao chão ao mesmo tempo — provando que a gravidade não depende da massa. Com ar, objetos mais leves são freados pela resistência, chegando depois. Siga os passos abaixo para explorar cada conceito.</p>
+  </div>
+
+  <div class="guide-grid">
+    <div class="guide-card">
+      <div class="gc-icon">🌍</div>
+      <h4>1. Escolha o Planeta e o Meio</h4>
+      <p>O primeiro seletor controla dois fatores ao mesmo tempo:</p>
+      <ul>
+        <li><strong style="color:var(--verde)">Terra com Ar</strong>: ativa a resistência do ar (arrasto), objetos leves caem mais devagar.</li>
+        <li><strong style="color:var(--verde)">Terra Vácuo</strong>: sem resistência — tudo cai igual.</li>
+        <li><strong style="color:var(--verde)">Lua / Marte / Júpiter</strong>: muda a gravidade (g) para explorar outros planetas.</li>
+      </ul>
+    </div>
+    <div class="guide-card">
+      <div class="gc-icon">📏</div>
+      <h4>2. Ajuste a Altura</h4>
+      <p>O slider de altura define a distância de queda (10 a 120 m). Alturas maiores permitem observar com mais clareza a diferença entre os dois objetos no modo "Com Ar", pois o objeto leve chega à <strong style="color:var(--amarelo)">velocidade terminal</strong> (quando para de acelerar).</p>
+    </div>
+    <div class="guide-card">
+      <div class="gc-icon">🏹</div>
+      <h4>3. Leia os Vetores de Força</h4>
+      <ul>
+        <li><strong style="color:var(--vermelho)">Seta vermelha ↓ (Peso)</strong>: constante. É a força da gravidade.</li>
+        <li><strong style="color:var(--azul)">Seta azul ↑ (Arrasto)</strong>: cresce com a velocidade. Quando iguala o Peso, o objeto para de acelerar — atingiu a velocidade terminal!</li>
+      </ul>
+    </div>
+    <div class="guide-card">
+      <div class="gc-icon">📊</div>
+      <h4>4. Analise os Gráficos</h4>
+      <ul>
+        <li><strong style="color:var(--verde)">v(t) no vácuo</strong>: reta perfeita (aceleração constante g).</li>
+        <li><strong style="color:var(--verde)">v(t) com ar</strong>: curva que se achata horizontalmente ao atingir a velocidade terminal.</li>
+        <li><strong style="color:var(--verde)">s(t)</strong>: parábola no vácuo, curvatura menor com ar.</li>
+      </ul>
+    </div>
+    <div class="guide-card">
+      <div class="gc-icon">⏱️</div>
+      <h4>5. Cronômetro de Precisão</h4>
+      <p>O tempo de queda é exibido com 3 casas decimais no topo da tela. Compare o tempo que cada objeto leva para chegar ao chão — no vácuo são idênticos, com ar divergem.</p>
+    </div>
+    <div class="guide-card">
+      <div class="gc-icon">🎯</div>
+      <h4>6. Rasto de Movimento</h4>
+      <p>Cada objeto deixa um rastro de pontos atrás de si durante a queda. No vácuo, o espaçamento entre pontos aumenta (aceleração). Com ar, o espaçamento estabiliza quando o objeto atinge a velocidade terminal.</p>
+    </div>
+  </div>
+
+  <table class="gtable">
+    <thead><tr><th>Configuração</th><th>O que Observar</th><th>Conceito</th></tr></thead>
+    <tbody>
+      <tr><td>Bala vs Pena — Com Ar</td><td>Pena cai muito mais devagar, seta azul domina</td><td>Resistência do ar / Velocidade Terminal</td></tr>
+      <tr><td>Bala vs Pena — Vácuo</td><td>Ambos chegam ao mesmo tempo</td><td>Princípio de Galileu</td></tr>
+      <tr><td>Qualquer — Lua</td><td>Queda muito lenta (g=1.62)</td><td>Gravidade dependente do astro</td></tr>
+      <tr><td>Qualquer — Júpiter</td><td>Queda brutal (g=24.8), curta duração</td><td>Comparação de gravidades</td></tr>
+      <tr><td>Pena — 120m com Ar</td><td>Gráfico v(t) achata: velocidade terminal</td><td>Equilíbrio Peso = Arrasto</td></tr>
+    </tbody>
+  </table>
+
+  <div class="fml-row">
+    <div class="fml-item">v(t) = g · t<span>No vácuo: velocidade cresce linearmente</span></div>
+    <div class="fml-item">s(t) = ½ · g · t²<span>No vácuo: posição é parábola</span></div>
+    <div class="fml-item">v_term = √(m·g / k)<span>Velocidade terminal: Peso = Arrasto</span></div>
+  </div>
+</div>
+
+<script>
+// ── OBJECT DEFINITIONS ──
+const OBJ = {
+  cannon: {
+    name:'Bala de Canhão', drag:.04,
+    build:()=>{const d=document.createElement('div');d.className='ball-3d ball-cannon';d.style.width='52px';d.style.height='52px';return d}
+  },
+  apple: {
+    name:'Maçã', drag:.28,
+    build:()=>{const d=document.createElement('div');d.className='ball-3d ball-apple';d.style.width='46px';d.style.height='46px';return d}
+  },
+  feather: {
+    name:'Pena', drag:2.2,
+    build:()=>{
+      const wrap=document.createElement('div');wrap.className='feather-3d';
+      wrap.innerHTML=`<svg viewBox="0 0 28 56" xmlns="http://www.w3.org/2000/svg">
+        <defs><linearGradient id="fg" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#f0ece0"/><stop offset="100%" stop-color="#c8bfa0"/></linearGradient></defs>
+        <ellipse cx="14" cy="24" rx="11" ry="22" fill="url(#fg)" opacity=".95"/>
+        <line x1="14" y1="2" x2="14" y2="54" stroke="#a09070" stroke-width="1.2"/>
+        <line x1="14" y1="8" x2="5" y2="16" stroke="#b0a880" stroke-width=".8" opacity=".7"/>
+        <line x1="14" y1="14" x2="4" y2="22" stroke="#b0a880" stroke-width=".8" opacity=".7"/>
+        <line x1="14" y1="20" x2="4" y2="28" stroke="#b0a880" stroke-width=".8" opacity=".7"/>
+        <line x1="14" y1="26" x2="5" y2="34" stroke="#b0a880" stroke-width=".8" opacity=".7"/>
+        <line x1="14" y1="8" x2="23" y2="16" stroke="#b0a880" stroke-width=".8" opacity=".7"/>
+        <line x1="14" y1="14" x2="24" y2="22" stroke="#b0a880" stroke-width=".8" opacity=".7"/>
+        <line x1="14" y1="20" x2="24" y2="28" stroke="#b0a880" stroke-width=".8" opacity=".7"/>
+        <line x1="14" y1="26" x2="23" y2="34" stroke="#b0a880" stroke-width=".8" opacity=".7"/>
+        <ellipse cx="14" cy="24" rx="11" ry="22" fill="none" stroke="rgba(200,190,160,.4)" stroke-width=".8"/>
+      </svg>`;
+      return wrap;
+    }
+  },
+  paper: {
+    name:'Folha de Papel', drag:2.6,
+    build:()=>{
+      const wrap=document.createElement('div');wrap.className='paper-3d';
+      wrap.innerHTML='<div class="paper-face paper-main"></div><div class="paper-face paper-fold"></div>';
+      return wrap;
+    }
+  }
+};
+
+const PLANETS = {
+  ar:     {g:9.81,  air:true,  label:'Terra — Com Ar'},
+  vacuo:  {g:9.81,  air:false, label:'Terra — Vácuo'},
+  lua:    {g:1.62,  air:false, label:'Lua — Vácuo'},
+  marte:  {g:3.72,  air:false, label:'Marte — Vácuo'},
+  jupiter:{g:24.8,  air:false, label:'Júpiter — Vácuo'}
+};
+
+// ── CHART.JS ──
+const mkChart=(id,yLabel,yUnit,c1,c2)=>new Chart(document.getElementById(id),{
+  type:'line',
+  data:{labels:[],datasets:[
+    {label:'Obj A',data:[],borderColor:c1,backgroundColor:c1+'20',borderWidth:2,pointRadius:1.5,pointHoverRadius:5,tension:.35,fill:false},
+    {label:'Obj B',data:[],borderColor:c2,backgroundColor:c2+'20',borderWidth:2,pointRadius:1.5,pointHoverRadius:5,tension:.35,fill:false}
+  ]},
+  options:{
+    animation:false, responsive:true, maintainAspectRatio:false,
+    interaction:{mode:'index',intersect:false},
+    plugins:{legend:{display:false},tooltip:{
+      backgroundColor:'#111d14',borderWidth:1,
+      titleColor:'rgba(223,240,230,.6)',bodyColor:'#dff0e6',
+      titleFont:{family:'Space Mono',size:9},
+      callbacks:{title:c=>`t = ${c[0].label} s`,label:c=>` ${c.dataset.label}: ${c.parsed.y.toFixed(2)} ${yUnit}`}
+    }},
+    scales:{
+      x:{grid:{color:'rgba(46,204,113,.06)'},ticks:{color:'rgba(223,240,230,.38)',font:{family:'Space Mono',size:8},maxTicksLimit:8},
+         title:{display:true,text:'Tempo (s)',color:'rgba(223,240,230,.5)',font:{family:'Outfit',size:10,weight:'600'}}},
+      y:{grid:{color:'rgba(46,204,113,.06)'},ticks:{color:'rgba(223,240,230,.38)',font:{family:'Space Mono',size:8},maxTicksLimit:6},
+         title:{display:true,text:yLabel,color:'rgba(223,240,230,.5)',font:{family:'Outfit',size:10,weight:'600'}}}
+    }
+  }
+});
+
+const chartV = mkChart('chartV','Velocidade (m/s)','m/s','#2ecc71','#f1c40f');
+const chartS = mkChart('chartS','Posição (m)','m','#2ecc71','#f1c40f');
+
+function switchG(key,btn){
+  document.querySelectorAll('.gpane').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.gtab').forEach(b=>b.classList.remove('active'));
+  document.getElementById('gpane-'+key).classList.add('active');
+  btn.classList.add('active');
+  requestAnimationFrame(()=>{ if(key==='V') chartV.resize(); else chartS.resize(); });
+}
+
+// ── STATE ──
+let raf, running=false, simT=0, lastTs=null;
+let y1=0,v1=0,y2=0,v2=0;
+let done1=false, done2=false;
+let lastTrail1=0, lastTrail2=0;
+let simSpeed=1;
+let term1=false, term2=false; // terminal velocity flags
+const TRAIL_INTERVAL=0.08;
+
+// ── WEB AUDIO (impact thud) ──
+let audioCtx=null;
+function getAudioCtx(){
+  if(!audioCtx) audioCtx=new(window.AudioContext||window.webkitAudioContext)();
+  return audioCtx;
+}
+function playThud(pitch=80){
+  try{
+    const ctx=getAudioCtx();
+    const osc=ctx.createOscillator();
+    const gain=ctx.createGain();
+    const dist=ctx.createWaveShaper();
+    // distortion curve for "thud" punch
+    const curve=new Float32Array(256);
+    for(let i=0;i<256;i++){const x=i*2/256-1;curve[i]=x<0?-Math.pow(-x,.6):Math.pow(x,.6)*0.8;}
+    dist.curve=curve;
+    osc.connect(dist); dist.connect(gain); gain.connect(ctx.destination);
+    osc.type='sine';
+    osc.frequency.setValueAtTime(pitch, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(pitch*0.15, ctx.currentTime+0.18);
+    gain.gain.setValueAtTime(0.7, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime+0.22);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime+0.22);
+  }catch(e){}
+}
+
+function setSpeed(s, btn){
+  simSpeed=s;
+  document.querySelectorAll('.spd-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+function getArena(){return document.getElementById('arena')}
+function arenaH(){return getArena().clientHeight - 22} // subtract ground
+
+function getH(){return parseFloat(document.getElementById('h-range').value)}
+function getMedium(){return PLANETS[document.getElementById('medium').value]}
+function getObj(id){return OBJ[document.getElementById(id).value]}
+function showVectors(){return document.getElementById('show-vectors').value==='1'}
+
+// pixel scale: arena_height maps to h meters
+function pxPerM(){return arenaH() / getH()}
+
+function objStartTop(){ return 8 } // px from top of arena
+
+function buildObject(bodyEl,def){
+  bodyEl.innerHTML='';
+  bodyEl.appendChild(def.build());
+}
+
+function buildRuler(){
+  const r=document.getElementById('ruler'); r.innerHTML='';
+  const h=getH(); const steps=Math.min(h,10);
+  for(let i=0;i<=steps;i++){
+    const d=document.createElement('div');
+    const val=Math.round(h-(h/steps)*i);
+    d.innerHTML=`<div class="ruler-num">${val}</div><div class="ruler-line"></div>`;
+    d.style.display='flex';d.style.alignItems='center';d.style.gap='2px';
+    r.appendChild(d);
+  }
+}
+
+function positionObj(wrapId, topPx){
+  const w=document.getElementById(wrapId);
+  w.style.top = topPx+'px';
+}
+
+function resetCharts(){
+  const v0=getObj('sel1').drag===0?0:0; // always 0 start
+  [chartV,chartS].forEach(c=>{
+    c.data.labels=['0.0'];
+    c.data.datasets[0].data=[0];
+    c.data.datasets[1].data=[0];
+    c.update();
+  });
+}
+
+function updateLabels(){
+  const o1=getObj('sel1'), o2=getObj('sel2');
+  document.getElementById('sl1').textContent = o1.name+' v';
+  document.getElementById('sl2').textContent = o2.name+' v';
+  document.getElementById('leg1').textContent = o1.name;
+  document.getElementById('leg2').textContent = o2.name;
+  document.getElementById('ll1').textContent  = o1.name.split(' ')[0].toUpperCase();
+  document.getElementById('ll2').textContent  = o2.name.split(' ')[0].toUpperCase();
+  const med = document.getElementById('medium').value;
+  const p = PLANETS[med];
+  document.getElementById('mode-badge').textContent = 'MODO: '+p.label.toUpperCase();
+  const infos={ar:'A resistência do ar desacelera objetos leves — eles atingem velocidade terminal.',
+    vacuo:'Sem ar: todos os objetos caem com a mesma aceleração g.',
+    lua:'Na Lua: g = 1,62 m/s² — queda muito mais lenta.',
+    marte:'Em Marte: g = 3,72 m/s².',
+    jupiter:'Em Júpiter: g = 24,8 m/s² — queda extremamente rápida!'};
+  document.getElementById('info-ar').textContent = infos[med];
+}
+
+function reset(){
+  running=false; cancelAnimationFrame(raf);
+  simT=0; lastTs=null; y1=0;v1=0;y2=0;v2=0; done1=false;done2=false;
+  lastTrail1=0; lastTrail2=0;
+
+  buildObject(document.getElementById('obj1-body'), getObj('sel1'));
+  buildObject(document.getElementById('obj2-body'), getObj('sel2'));
+  positionObj('obj1-wrap', objStartTop());
+  positionObj('obj2-wrap', objStartTop());
+
+  document.getElementById('sv-t').textContent='0.000 s';
+  document.getElementById('sv-v1').textContent='0.00 m/s';
+  document.getElementById('sv-v2').textContent='0.00 m/s';
+
+  document.querySelectorAll('.trail-dot,.impact').forEach(e=>e.remove());
+  term1=false; term2=false;
+  document.getElementById('term-card').style.display='none';
+  document.getElementById('sv-term').textContent='—';
+  document.getElementById('sv-v1').classList.remove('terminal-reached');
+  document.getElementById('sv-v2').classList.remove('terminal-reached');
+
+  drawForceVectors(0,0,0,0);
+  if(!showVectors()){
+    document.getElementById('fv1').style.display='none';
+    document.getElementById('fv2').style.display='none';
+  }
+
+  buildRuler();
+  updateLabels();
+  resetCharts();
+}
+
+function onH(){
+  document.getElementById('h-val').textContent=document.getElementById('h-range').value;
+  reset();
+}
+
+// ── FORCE VECTORS ──
+function drawForceVectors(v1,v2,drag1coeff,drag2coeff){
+  if(!showVectors()) return;
+  const med=getMedium();
+  drawFV('fvg1','fv1', med.g, med.air?drag1coeff*v1*0.5:0);
+  drawFV('fvg2','fv2', med.g, med.air?drag2coeff*v2*0.5:0);
+}
+
+function drawFV(svgId, wrapId, g, airForce){
+  const wrap=document.getElementById(wrapId);
+  wrap.style.display='block';
+  const svg=document.getElementById(svgId);
+  const W=50,H=80,cx=25;
+  // weight arrow down (red) — fixed length 30px
+  const wLen=30;
+  // air arrow up (blue) — proportional, max 28px
+  const aLen=Math.min(airForce*6,28);
+
+  svg.innerHTML=`
+    <!-- Weight -->
+    <line x1="${cx}" y1="0" x2="${cx}" y2="${wLen}" stroke="#e74c3c" stroke-width="2.5" stroke-linecap="round"/>
+    <polygon points="${cx},${wLen+8} ${cx-5},${wLen} ${cx+5},${wLen}" fill="#e74c3c"/>
+    <text x="${cx+7}" y="${wLen/2+4}" fill="#e74c3c" font-size="8" font-family="Space Mono">P</text>
+    ${aLen>3?`
+    <!-- Air drag -->
+    <line x1="${cx}" y1="${H}" x2="${cx}" y2="${H-aLen}" stroke="#3498db" stroke-width="2.5" stroke-linecap="round"/>
+    <polygon points="${cx},${H-aLen-8} ${cx-5},${H-aLen} ${cx+5},${H-aLen}" fill="#3498db"/>
+    <text x="${cx+7}" y="${H-aLen/2}" fill="#3498db" font-size="8" font-family="Space Mono">Ar</text>
+    `:''}
+  `;
+}
+
+// ── TRAILS ──
+function spawnTrail(wrapId, color){
+  const arena=getArena();
+  const wrap=document.getElementById(wrapId);
+  const wRect=wrap.getBoundingClientRect();
+  const aRect=arena.getBoundingClientRect();
+  const cx=wRect.left-aRect.left+wRect.width/2;
+  const cy=wRect.top-aRect.top+wRect.height/2;
+  const dot=document.createElement('div');
+  dot.className='trail-dot';
+  const s=5+Math.random()*4;
+  dot.style.cssText=`width:${s}px;height:${s}px;left:${cx-s/2}px;top:${cy-s/2}px;background:${color};position:absolute;`;
+  arena.appendChild(dot);
+  setTimeout(()=>dot.remove(),900);
+}
+
+function spawnImpact(wrapId, color){
+  const arena=getArena();
+  const aRect=arena.getBoundingClientRect();
+  const wrap=document.getElementById(wrapId);
+  const wRect=wrap.getBoundingClientRect();
+  const cx=wRect.left-aRect.left+wRect.width/2;
+  const imp=document.createElement('div');
+  imp.className='impact';
+  const s=20;
+  imp.style.cssText=`width:${s}px;height:${s}px;left:${cx-s/2}px;bottom:22px;background:${color};position:absolute;`;
+  arena.appendChild(imp);
+  setTimeout(()=>imp.remove(),600);
+}
+
+// ── SIMULATION LOOP ──
+function start(){
+  if(running) return;
+  running=true; lastTs=null;
+  const p=getMedium();
+  const d1=getObj('sel1').drag;
+  const d2=getObj('sel2').drag;
+  const H=getH();
+  const ppm=pxPerM();
+  const startTop=objStartTop();
+
+  function loop(ts){
+    if(!running) return;
+    if(!lastTs) lastTs=ts;
+    const dtReal=(ts-lastTs)/1000;
+    lastTs=ts;
+    const dt=Math.min(dtReal,0.033)*simSpeed; // scaled by sim speed
+    simT+=dt;
+
+    // Physics
+    let a1=0, a2=0;
+    if(!done1){
+      const airF1 = p.air ? d1*v1*0.5 : 0;
+      a1 = p.g - airF1;
+      v1+=a1*dt; y1+=v1*dt;
+    }
+    if(!done2){
+      const airF2 = p.air ? d2*v2*0.5 : 0;
+      a2 = p.g - airF2;
+      v2+=a2*dt; y2+=v2*dt;
+    }
+
+    // ── TERMINAL VELOCITY DETECTION ──
+    if(p.air){
+      if(!done1 && !term1 && Math.abs(a1)<0.15){
+        term1=true;
+        document.getElementById('sv-v1').classList.add('terminal-reached');
+        document.getElementById('term-card').style.display='';
+        document.getElementById('sv-term').textContent=getObj('sel1').name.split(' ')[0]+': '+v1.toFixed(1)+' m/s';
+      }
+      if(!done2 && !term2 && Math.abs(a2)<0.15){
+        term2=true;
+        document.getElementById('sv-v2').classList.add('terminal-reached');
+        document.getElementById('term-card').style.display='';
+        const prev=document.getElementById('sv-term').textContent;
+        const nm=getObj('sel2').name.split(' ')[0];
+        document.getElementById('sv-term').textContent=(prev==='—'?'':prev+' | ')+nm+': '+v2.toFixed(1)+' m/s';
+      }
+    }
+
+    // Position objects
+    if(!done1){
+      const top1=startTop+y1*ppm;
+      if(top1+50 >= arenaH()){
+        done1=true;
+        positionObj('obj1-wrap', arenaH()-50+startTop-startTop);
+        spawnImpact('obj1-wrap','rgba(46,204,113,.7)');
+        playThud(90);
+      } else { positionObj('obj1-wrap', top1); }
+    }
+    if(!done2){
+      const top2=startTop+y2*ppm;
+      if(top2+50 >= arenaH()){
+        done2=true;
+        positionObj('obj2-wrap', arenaH()-50+startTop-startTop);
+        spawnImpact('obj2-wrap','rgba(241,196,15,.7)');
+        playThud(65);
+      } else { positionObj('obj2-wrap', top2); }
+    }
+
+    // Trails
+    if(simT-lastTrail1>=TRAIL_INTERVAL && !done1){
+      spawnTrail('obj1-wrap','rgba(46,204,113,.6)'); lastTrail1=simT;
+    }
+    if(simT-lastTrail2>=TRAIL_INTERVAL && !done2){
+      spawnTrail('obj2-wrap','rgba(241,196,15,.6)'); lastTrail2=simT;
+    }
+
+    // Force vectors
+    drawForceVectors(v1,v2,d1,d2);
+
+    // Stats
+    document.getElementById('sv-t').textContent=simT.toFixed(3)+' s';
+    document.getElementById('sv-v1').textContent=v1.toFixed(2)+' m/s';
+    document.getElementById('sv-v2').textContent=v2.toFixed(2)+' m/s';
+
+    // Charts — push ~every 0.1s sim
+    const tLabel=simT.toFixed(1);
+    if(!chartV.data.labels.includes(tLabel)){
+      chartV.data.labels.push(tLabel);
+      chartV.data.datasets[0].data.push(+v1.toFixed(2));
+      chartV.data.datasets[1].data.push(+v2.toFixed(2));
+      chartV.update('none');
+      chartS.data.labels.push(tLabel);
+      chartS.data.datasets[0].data.push(+y1.toFixed(2));
+      chartS.data.datasets[1].data.push(+y2.toFixed(2));
+      chartS.update('none');
+    }
+
+    if(done1 && done2){ running=false; return; }
+    raf=requestAnimationFrame(loop);
+  }
+  raf=requestAnimationFrame(loop);
+}
+
+function showTab(name,btn){
+  document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+  btn.classList.add('active');
+}
+
+// init
+reset();
+</script>
+</body>
+</html>
