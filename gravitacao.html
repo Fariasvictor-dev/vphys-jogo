@@ -447,33 +447,36 @@ function draw(cv){
   });
 
   const a=semiA,e=ecc;
-  const b=a*Math.sqrt(1-e*e);
-  const c=a*e; // focal distance
+  const b_raw=a*Math.sqrt(1-e*e);
+  const c_raw=a*e; // focal distance (raw units)
 
-  // Layout: focus (M1) at ~40% from left, centered vertically
-  const margin=isFS?0.40:0.46;
-  const ellCx=W*margin+c*0.5;
-  const ellCy=H*0.5;
-  const focX=ellCx-c*0.5; // left focus = M1
-  const focY=ellCy;
+  // ── Adaptive scale: fit ellipse inside canvas with padding ──
+  const padX = isFS ? 120 : 100;
+  const padY = isFS ? 44  : 32;
+  const maxA = (W - padX*2) / 2;
+  const maxB = (H - padY*2) / 2;
+  const scale = Math.min(maxA / Math.max(a,1), maxB / Math.max(b_raw,1), 1.0);
+  const a_s = a * scale;
+  const b   = b_raw * scale;
+  const c   = c_raw * scale;
 
-  // perihelion (left of focus) and aphelion (right of focus)
-  const rp=a*(1-e), ra=a*(1+e);
-  const perX=focX-rp, perY=focY;
-  const aphX=focX+ra, aphY=focY;
+  // Ellipse geometric centre. Shift slightly right when e>0 so perihelion
+  // label (which appears to the RIGHT of perX) has room.
+  const ellCx = W / 2;
+  const ellCy = H / 2;
+  // LEFT focus = M1  (perihelion is to its right at θ=0, aphelion to its left)
+  const focX = ellCx - c;
+  const focY = ellCy;
 
-  // ── Ellipse path ──
-  ctx.save();
-  ctx.translate(ellCx,ellCy);
-  ctx.beginPath();ctx.ellipse(0,0,a,b,0,0,Math.PI*2);
-  ctx.strokeStyle='rgba(52,152,219,.18)';ctx.lineWidth=1.5;ctx.stroke();
-  ctx.restore();
+  // Correct polar geometry from LEFT focus:
+  //   θ=0  → r = a(1-e)  → perihelion  → screen x = focX + rp_s  (right of focus)
+  //   θ=π  → r = a(1+e)  → aphelion    → screen x = focX - ra_s  (left of focus)
+  const rp = a*(1-e), ra = a*(1+e);
+  const rp_s = rp*scale, ra_s = ra*scale;
+  const perX = focX + rp_s,  perY = focY;   // rightmost extreme near focus
+  const aphX = focX - ra_s,  aphY = focY;   // leftmost extreme far from focus
 
-  // ── Semi-major axis line ──
-  ctx.save();ctx.setLineDash([4,6]);
-  ctx.strokeStyle='rgba(255,255,255,.05)';ctx.lineWidth=1;
-  ctx.beginPath();ctx.moveTo(perX,focY);ctx.lineTo(aphX,focY);ctx.stroke();
-  ctx.setLineDash([]);ctx.restore();
+
 
   // ── Trail ──
   if(trail.length>2){
@@ -484,16 +487,17 @@ function draw(cv){
     }
   }
 
-  // ── M2 position ──
+  // ── M2 position (polar coords from left focus, scaled) ──
   const r=rAt(trueAnomaly);
-  const m2x=focX+r*Math.cos(trueAnomaly);
-  const m2y=focY+r*Math.sin(trueAnomaly);
+  const r_s=r*scale;
+  const m2x=focX+r_s*Math.cos(trueAnomaly);
+  const m2y=focY+r_s*Math.sin(trueAnomaly);
   const size2=Math.max(7,Math.sqrt(m2)*2.6);
 
   // ── Force arrow ──
   const F=G_vis*m1*m2/(r*r);
   const ddx=focX-m2x,ddy=focY-m2y,dn=Math.sqrt(ddx*ddx+ddy*ddy);
-  const arrowLen=Math.min(F*.00045*rp,65);
+  const arrowLen=Math.min(F*.00045*rp_s,65);
   if(arrowLen>4) arrow(ctx,m2x+(ddx/dn)*size2,m2y+(ddy/dn)*size2,m2x+(ddx/dn)*(size2+arrowLen),m2y+(ddy/dn)*(size2+arrowLen),'#f1c40f');
 
   // ── r dashed line ──
@@ -503,35 +507,43 @@ function draw(cv){
 
   // ── Label font size ──
   const ls=isFS?13:11;
+  const lsm=isFS?11:10;
 
   // ── PERIÉLIO marker ──
+  // perX = focX + rp_s  (between M1 and right side of canvas)
+  // Label goes to the RIGHT if there's room, else above
   ctx.save();
   ctx.beginPath();ctx.arc(perX,perY,5,0,Math.PI*2);
   ctx.fillStyle='rgba(231,76,60,.9)';ctx.fill();
   ctx.strokeStyle='#e74c3c';ctx.lineWidth=1.5;ctx.stroke();
-  ctx.textAlign='right';
+  // Always label to the right of the perihelion dot (it's on the M1 side, so right has space)
+  const perLX = perX + 14;
+  ctx.textAlign='left';
   ctx.font=`700 ${ls}px Outfit`;ctx.fillStyle='#e74c3c';
-  ctx.fillText('PERIÉLIO',perX-10,perY-10);
-  ctx.font=`400 ${ls-1}px Space Mono`;ctx.fillStyle='rgba(231,76,60,.65)';
-  ctx.fillText(`r_p = ${rp.toFixed(0)} u.a.`,perX-10,perY+6);
-  ctx.fillText('v máx · F máx',perX-10,perY+19);
+  ctx.fillText('PERIÉLIO',perLX,perY-12);
+  ctx.font=`400 ${lsm}px Space Mono`;ctx.fillStyle='rgba(231,76,60,.65)';
+  ctx.fillText(`r_p = ${rp.toFixed(0)} u.a.`,perLX,perY+4);
+  ctx.fillText('v máx · F máx',perLX,perY+17);
   ctx.restore();
 
   // ── AFÉLIO marker ──
+  // aphX = focX - ra_s  (far left of canvas)
+  // Label goes to the RIGHT of the dot (toward centre)
   ctx.save();
   ctx.beginPath();ctx.arc(aphX,aphY,5,0,Math.PI*2);
   ctx.fillStyle='rgba(52,152,219,.9)';ctx.fill();
   ctx.strokeStyle='#3498db';ctx.lineWidth=1.5;ctx.stroke();
+  const aphLX = aphX + 14;
   ctx.textAlign='left';
   ctx.font=`700 ${ls}px Outfit`;ctx.fillStyle='#3498db';
-  ctx.fillText('AFÉLIO',aphX+10,aphY-10);
-  ctx.font=`400 ${ls-1}px Space Mono`;ctx.fillStyle='rgba(52,152,219,.65)';
-  ctx.fillText(`r_a = ${ra.toFixed(0)} u.a.`,aphX+10,aphY+6);
-  ctx.fillText('v mín · F mín',aphX+10,aphY+19);
+  ctx.fillText('AFÉLIO',aphLX,aphY-12);
+  ctx.font=`400 ${lsm}px Space Mono`;ctx.fillStyle='rgba(52,152,219,.65)';
+  ctx.fillText(`r_a = ${ra.toFixed(0)} u.a.`,aphLX,aphY+4);
+  ctx.fillText('v mín · F mín',aphLX,aphY+17);
   ctx.restore();
 
-  // ── Foco vazio ──
-  const foc2X=ellCx+c*.5;
+  // ── Foco vazio (RIGHT focus = ellCx + c) ──
+  const foc2X = ellCx + c;
   ctx.save();
   ctx.beginPath();ctx.arc(foc2X,focY,3,0,Math.PI*2);
   ctx.fillStyle='rgba(255,255,255,.13)';ctx.fill();
@@ -560,7 +572,7 @@ function draw(cv){
   ctx.fillStyle='rgba(255,255,255,.6)';ctx.font='700 11px Outfit';ctx.textAlign='center';
   ctx.fillText('M2',m2x,m2y-size2-9);
 
-  // r label
+  // r label (midpoint of the dashed line)
   ctx.fillStyle='rgba(255,255,255,.2)';ctx.font='9px Space Mono';ctx.textAlign='center';
   ctx.fillText(`r=${r.toFixed(0)}`,(focX+m2x)/2,(focY+m2y)/2-9);
 
@@ -615,14 +627,17 @@ function loop(ts){
   const r=rAt(trueAnomaly);
   trueAnomaly+=angVel(r)*dt*simSpeed*.28;
 
-  // Compute M2 screen position for trail
+  // Compute M2 screen position for trail (must match draw() exactly)
   const cv=getCV(),W=cv.width,H=cv.height;
-  const a=semiA,e=ecc,c=a*e;
-  const margin=isFS?.40:.46;
-  const ellCx=W*margin+c*.5;
-  const focX=ellCx-c*.5,focY=H*.5;
+  const a_raw=semiA, e_raw=ecc;
+  const b_raw2=a_raw*Math.sqrt(1-e_raw*e_raw);
+  const padX2=isFS?120:100, padY2=isFS?44:32;
+  const scale2=Math.min((W-padX2*2)/2/Math.max(a_raw,1),(H-padY2*2)/2/Math.max(b_raw2,1),1.0);
+  const c_s2=a_raw*e_raw*scale2;
+  const ellCx2=W/2, focX2=ellCx2-c_s2, focY2=H/2;
   const r2=rAt(trueAnomaly);
-  trail.push({x:focX+r2*Math.cos(trueAnomaly),y:focY+r2*Math.sin(trueAnomaly)});
+  const r2_s=r2*scale2;
+  trail.push({x:focX2+r2_s*Math.cos(trueAnomaly),y:focY2+r2_s*Math.sin(trueAnomaly)});
   if(trail.length>380)trail.shift();
 
   draw(cv);updateCards();
